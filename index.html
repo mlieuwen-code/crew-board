@@ -130,6 +130,25 @@ a{color:var(--deep)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px;font-weight:800;color:var(--muted);margin:16px 2px 0}
 .legend i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:5px}
 
+.awaybar{background:#ECEAE6;border-left:8px solid #616161;border-radius:14px;padding:10px 14px;font-weight:900;margin-bottom:12px}
+.wav{color:#4a4a4a!important;font-weight:900!important;background:#ECEAE6;border-radius:10px;padding:4px 8px!important}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;border-radius:11px;background:var(--orange);color:#fff;font-size:13px;margin-left:4px;padding:0 6px}
+.offform{background:var(--card);border-radius:20px;padding:16px;box-shadow:0 2px 0 var(--line);display:flex;flex-direction:column;gap:12px;max-width:760px}
+.offform h2{margin:0;font-size:22px;font-weight:900}
+.offform label{font-size:14px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px}
+.offform label i{font-style:normal;text-transform:none;font-weight:700;letter-spacing:0}
+.offform input,.offform select{width:100%;min-height:52px;border-radius:14px;border:2px solid var(--line);background:var(--field);padding:8px 14px;font-size:18px;font-weight:700}
+.offh{font-size:15px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:22px 2px 8px}
+.offrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:var(--card);border-radius:16px;padding:12px 14px;margin-bottom:8px;box-shadow:0 2px 0 var(--line);border-left:8px solid #999;max-width:760px}
+.offrow .o-main{flex:1;min-width:180px}.offrow b{display:block;font-size:20px;font-weight:900}.offrow span{font-weight:800;color:var(--muted)}.offrow em{display:block;font-style:normal;font-weight:700;margin-top:2px}
+.ochip{border-radius:999px;padding:4px 12px;font-size:14px;font-weight:900;color:#fff!important;background:#999}
+.st-pending{border-left-color:#E0A800}.st-pending .ochip{background:#B07F00}
+.st-approved{border-left-color:#2E8C3E}.st-approved .ochip{background:#2E8C3E}
+.st-declined{border-left-color:#bbb;opacity:.75}.st-declined .ochip{background:#888}
+.st-cal{border-left-color:#616161}.st-cal .ochip{background:#616161}
+.o-btns{display:flex;gap:8px;flex-basis:100%}.o-btns .btn{flex:1}
+.tab{white-space:nowrap}
+@media(max-width:560px){.tab{font-size:14px;padding:0 8px;flex:1 0 auto}}
 /* ---- sticky header so day/week switching is always in reach ---- */
 .stick{position:sticky;top:0;z-index:20;background:var(--bg);margin:0 -16px;padding:0 16px;box-shadow:0 6px 10px -10px rgba(0,0,0,.25)}
 /* ---- phone ---- */
@@ -270,7 +289,7 @@ function readHash(){
   var h=(location.hash||"").replace("#","");var m;
   if((m=h.match(/^day-(\d{4}-\d\d-\d\d)$/))){view="day";cur=m[1];}
   else if((m=h.match(/^week-(\d{4}-\d\d-\d\d)$/))){view="week";cur=m[1];}
-  else if(h==="jobs")view="jobs";else if(h==="crew")view="crew";
+  else if(h==="jobs")view="jobs";else if(h==="crew")view="crew";else if(h==="off")view="off";
 }
 function go(v,k){view=v;if(k)cur=k;var h=v==="day"?"day-"+cur:v==="week"?"week-"+monday(cur):v;try{history.replaceState(null,"","#"+h);}catch(e){location.hash=h;}render();window.scrollTo(0,0);}
 window.addEventListener("hashchange",function(){readHash();render();});
@@ -281,12 +300,12 @@ function render(){
   h+='<button class="btn ghost" data-a="refresh" aria-label="Refresh">'+(loading?'…':'↻')+'</button>';
   if(pin){h+='<button class="btn '+(editing()?'org':'ghost')+'" data-a="toggleEdit">'+(editing()?'✓ Done':'✎ Edit')+'</button>';if(editing())h+='<button class="btn ghost" data-a="lock" aria-label="Lock">🔒</button>';}
   h+='</div>';
-  h+='<div class="tabs">'+tab("day","Day")+tab("week","Week")+tab("jobs","Jobsites")+(editing()?tab("crew","Crew"):"")+'</div></div>';
+  h+='<div class="tabs">'+tab("day","Day")+tab("week","Week")+tab("jobs","Jobsites")+tab("off","Time Off"+(editing()&&offCount()?' <span class="badge">'+offCount()+'</span>':''))+(editing()?tab("crew","Crew"):"")+'</div></div>';
   if(loadErr==="setup")h+='<div class="editbar"><span>Not connected to the calendar yet — paste the Apps Script web app URL into API_URL.</span></div>';
   else if(loadErr==="offline")h+='<div class="editbar"><span>No signal — showing the last copy saved on this phone.</span></div>';
   else if(loadErr)h+='<div class="editbar"><span>Couldn\'t reach the board — showing the last copy. Tap ↻ to try again.</span></div>';
   if(!loaded&&loading&&!state.jobs.length)h+='<div class="empty">Loading the schedule…</div>';
-  if(view==="day")h+=renderDay();else if(view==="week")h+=renderWeek();else if(view==="jobs")h+=renderJobs();else h+=renderCrew();
+  if(view==="day")h+=renderDay();else if(view==="week")h+=renderWeek();else if(view==="jobs")h+=renderJobs();else if(view==="off")h+=renderOff();else h+=renderCrew();
   h+='<div class="legend">'+TYPES.map(function(t){return '<span><i style="background:'+t.c+'"></i>'+t.n+'</span>';}).join("")+'</div>';
   if(state.updatedAt)h+='<div class="ro">Last updated '+new Date(state.updatedAt).toLocaleString(undefined,{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})+'</div>';
   root.innerHTML=h;
@@ -302,6 +321,7 @@ function renderDay(){
     h+='<div class="editbar"><span>Editing '+longDate(cur)+'</span><button class="btn sm pri" data-a="addItem">+ Add site</button><button class="btn sm" data-a="editDayNote">'+(d.note?'Edit':'Add')+' day note</button>'+(d.items.length?'<button class="btn sm" data-a="copyDayTo">Copy whole day to…</button>':'')+'</div>';
   }
   if(editing()&&state.calError)h+='<div class="calbar"><span style="color:var(--bad)">Calendar not read: '+esc(state.calError)+'</span></div>';
+  h+=awayBanner(cur);
   if(d.note)h+='<div class="daynote">'+esc(d.note)+'</div>';
   if(!d.items.length){h+='<div class="empty">Nothing scheduled for '+longDate(cur)+' yet.'+(editing()?' Tap “+ Add site”.':'')+'</div>';return h;}
   h+='<div class="sites">';
@@ -338,7 +358,7 @@ function renderWeek(){
   h+='<div class="week">';
   for(var i=0;i<5;i++){
     var k=addDays(m,i),d=day(k);
-    h+='<div class="wday'+(k===realToday()?' today':'')+'"><button class="whead" data-a="openDay" data-k="'+k+'">'+DN[parse(k).getDay()].slice(0,3)+' <small>'+shortDate(k)+' ›</small></button>';
+    h+='<div class="wday'+(k===realToday()?' today':'')+'"><button class="whead" data-a="openDay" data-k="'+k+'">'+DN[parse(k).getDay()].slice(0,3)+' <small>'+shortDate(k)+' ›</small></button>'+(awayOn(k).length?'<div class="wempty wav">🏖 '+awayOn(k).map(esc).join(", ")+'</div>':'');
     if(d.note)h+='<div class="wempty" style="color:var(--deep)">'+esc(d.note.split("\n")[0])+'</div>';
     if(!d.items.length)h+='<div class="wempty">—</div>';
     d.items.forEach(function(it){
@@ -395,6 +415,84 @@ function copy(text){
 }
 function showText(text){openModal('<h2>Copy this</h2><textarea style="min-height:360px" readonly>'+esc(text)+'</textarea><div class="mrow"><button class="btn pri" data-a="close">Done</button></div>');}
 
+/* ---------- time off ---------- */
+function awayOn(k){
+  var out=[];
+  (state.timeOff||[]).forEach(function(t){if(t.status==="approved"&&t.from<=k&&t.to>=k)out.push(t.name);});
+  (state.calAway||[]).forEach(function(a){if(a.from<=k&&a.to>=k)out.push(a.title.replace(/^away\s*[-:–]\s*/i,""));});
+  return out;
+}
+function awayBanner(k){var a=awayOn(k);return a.length?'<div class="awaybar">🏖 Away: '+a.map(esc).join(", ")+'</div>':'';}
+function rangeText(f,t){
+  var n=0,k=f;while(k<=t){var w=parse(k).getDay();if(w!==0&&w!==6)n++;k=addDays(k,1);}
+  var a=DN[parse(f).getDay()].slice(0,3)+" "+shortDate(f);
+  return (f===t?a:a+" – "+DN[parse(t).getDay()].slice(0,3)+" "+shortDate(t))+" · "+n+" work day"+(n===1?"":"s");
+}
+var offForm={name:"",other:"",from:"",to:"",note:""};
+function renderOff(){
+  var today=realToday(),h='<div class="nav"><h1>Time Off<small>Book days away · Matt approves</small></h1></div>';
+  if(!offForm.from){offForm.from=todayKey();offForm.to=todayKey();}
+  h+='<div class="offform"><h2>Book time away</h2>';
+  h+='<div class="row2"><div><label>Your name</label><select id="o-name"><option value="">Pick your name…</option>'+state.crew.map(function(c){return '<option'+(offForm.name===c.name?' selected':'')+'>'+esc(c.name)+'</option>';}).join("")+'<option value="__other"'+(offForm.name==="__other"?' selected':'')+'>Someone else…</option></select></div>';
+  h+='<div'+(offForm.name==="__other"?'':' hidden')+' id="o-otherwrap"><label>Name</label><input id="o-other" value="'+esc(offForm.other)+'" placeholder="First and last name"></div></div>';
+  h+='<div class="row2"><div><label>First day off</label><input type="date" id="o-from" value="'+offForm.from+'"></div><div><label>Last day off</label><input type="date" id="o-to" value="'+offForm.to+'"></div></div>';
+  h+='<div><label>Reason <i>(optional)</i></label><input id="o-note" value="'+esc(offForm.note)+'" placeholder="Appointment, holiday, family…"></div>';
+  h+='<div class="mrow"><button class="btn pri" data-a="offSend">Send request</button></div></div>';
+  var list=(state.timeOff||[]).filter(function(t){return t.to>=today;}).slice().sort(function(a,b){return a.from<b.from?-1:a.from>b.from?1:0;});
+  var pend=list.filter(function(t){return t.status==="pending";});
+  var rest=list.filter(function(t){return t.status!=="pending";});
+  var cal=(state.calAway||[]).filter(function(a){return a.to>=today;});
+  if(pend.length){h+='<h3 class="offh">Waiting for Matt ('+pend.length+')</h3>';pend.forEach(function(t){h+=offRow(t);});}
+  h+='<h3 class="offh">Coming up</h3>';
+  if(!rest.length&&!cal.length)h+='<div class="empty" style="padding:18px">Nobody has time booked off.</div>';
+  rest.forEach(function(t){h+=offRow(t);});
+  cal.forEach(function(a){h+='<div class="offrow st-cal"><div class="o-main"><b>'+esc(a.title)+'</b><span>'+rangeText(a.from,a.to)+'</span></div><span class="ochip">On calendar</span></div>';});
+  return h;
+}
+function offRow(t){
+  var chip={pending:"Pending",approved:"Approved",declined:"Declined"}[t.status]||t.status;
+  var h='<div class="offrow st-'+t.status+'"><div class="o-main"><b>'+esc(t.name)+'</b><span>'+rangeText(t.from,t.to)+'</span>'+(t.note?'<em>'+esc(t.note)+'</em>':'')+'</div><span class="ochip">'+chip+(t.status==="approved"&&t.calEventId?' · on calendar':'')+'</span>';
+  if(editing()){
+    h+='<div class="o-btns">';
+    if(t.status!=="approved")h+='<button class="btn sm pri" data-a="offSet" data-id="'+t.id+'" data-s="approved">Approve</button>';
+    if(t.status!=="declined")h+='<button class="btn sm" data-a="offSet" data-id="'+t.id+'" data-s="declined">Decline</button>';
+    h+='<button class="btn sm danger" data-a="offSet" data-id="'+t.id+'" data-s="delete">Delete</button></div>';
+  }
+  return h+'</div>';
+}
+function offCount(){return (state.timeOff||[]).filter(function(t){return t.status==="pending"&&t.to>=realToday();}).length;}
+function readOffForm(){
+  var g=function(id){var el=document.getElementById(id);return el?el.value:"";};
+  offForm.name=g("o-name");offForm.other=g("o-other");offForm.from=g("o-from");offForm.to=g("o-to");offForm.note=g("o-note");
+}
+document.addEventListener("change",function(e){
+  if(view!=="off")return;
+  if(e.target.id==="o-name"){readOffForm();var w=document.getElementById("o-otherwrap");if(w)w.hidden=offForm.name!=="__other";}
+  if(e.target.id==="o-from"){var to=document.getElementById("o-to");if(to&&(!to.value||to.value<e.target.value))to.value=e.target.value;}
+});
+function offSend(btn){
+  readOffForm();
+  var name=offForm.name==="__other"?offForm.other.trim():offForm.name;
+  if(!name){toast("Pick your name");return;}
+  if(!offForm.from){toast("Pick your first day off");return;}
+  if(!offForm.to||offForm.to<offForm.from)offForm.to=offForm.from;
+  if(!apiReady()){toast("Not connected yet");return;}
+  btn.textContent="Sending…";btn.disabled=true;
+  post({action:"requestOff",request:{name:name,from:offForm.from,to:offForm.to,note:offForm.note.trim()}}).then(function(r){
+    if(r&&r.ok){state.timeOff=(state.timeOff||[]).concat([r.item]);offForm={name:"",other:"",from:"",to:"",note:""};render();toast("Sent — it shows as Pending until Matt approves");}
+    else{btn.textContent="Send request";btn.disabled=false;toast((r&&r.error)||"Couldn't send — try again");}
+  }).catch(function(){btn.textContent="Send request";btn.disabled=false;toast("Couldn't send — check your signal");});
+}
+function offSet(id,s,btn){
+  if(s==="delete"&&!btn.getAttribute("data-armed")){btn.setAttribute("data-armed","1");btn.textContent="Tap again";return;}
+  btn.textContent="…";
+  post({action:"offStatus",pin:pin,id:id,status:s}).then(function(r){
+    if(r&&r.ok){state.timeOff=r.timeOff;render();toast(r.calNote?("Saved, but the calendar said: "+r.calNote):({approved:"Approved — added to your calendar",declined:"Declined",delete:"Deleted"}[s]));}
+    else if(r&&r.error==="wrong pin"){toast("PIN changed — unlock again");}
+    else toast("Couldn't save — try again");
+  }).catch(function(){toast("Couldn't save — check your signal");render();});
+}
+
 /* ---------- modals ---------- */
 function openModal(html){modalEl.innerHTML='<div class="box2">'+html+'</div>';modalEl.hidden=false;}
 function closeModal(){modalEl.hidden=true;modalEl.innerHTML="";}
@@ -443,7 +541,9 @@ function newItem(){return {id:uid(),jobId:"",type:"install",start:"",area:"",cre
 document.addEventListener("click",function(e){
   var b=e.target.closest("[data-a]");if(!b)return;var a=b.getAttribute("data-a"),i=+b.getAttribute("data-i"),d;
   switch(a){
-  case "go":go(b.getAttribute("data-v"),view==="jobs"||view==="crew"?null:cur);break;
+  case "go":go(b.getAttribute("data-v"),view==="jobs"||view==="crew"||view==="off"?null:cur);break;
+  case "offSend":offSend(b);break;
+  case "offSet":offSet(b.getAttribute("data-id"),b.getAttribute("data-s"),b);break;
   case "toggleEdit":if(editing()){editMode=false;}else if(!pin){askPin();break;}else{editMode=true;}try{localStorage.setItem("cjb-edit",editMode?"1":"0");}catch(x){}render();break;
   case "refresh":load();break;
   case "noteNext":(function(){
