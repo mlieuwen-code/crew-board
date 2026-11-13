@@ -41,12 +41,42 @@ function doPost(e) {
   try { body = JSON.parse(e.postData.contents || '{}'); } catch (x) { return json_({ ok: false, error: 'bad request' }); }
   try {
     if (body.action === 'checkPin') return json_({ ok: String(body.pin) === String(ADMIN_PIN) });
+    if (body.action === 'requestOff') return withLock_(() => {
+      const r = body.request || {};
+      const name = String(r.name || '').trim().slice(0, 60), from = String(r.from || ''), to = String(r.to || r.from || '');
+      if (!name || !/^\d{4}-\d\d-\d\d$/.test(from) || !/^\d{4}-\d\d-\d\d$/.test(to) || to < from) return json_({ ok: false, error: 'Fill in your name and the dates' });
+      const st = readState_();
+      const item = { id: Utilities.getUuid().slice(0, 8), name: name, from: from, to: to, note: String(r.note || '').slice(0, 300), status: 'pending', created: Date.now() };
+      st.timeOff.push(item); writeState_(st);
+      return json_({ ok: true, item: item });
+    });
+    if (body.action === 'offStatus') {
+      if (String(body.pin) !== String(ADMIN_PIN)) return json_({ ok: false, error: 'wrong pin' });
+      return withLock_(() => {
+        const st = readState_();
+        const x = st.timeOff.find(t => t.id === body.id);
+        if (!x) return json_({ ok: false, error: 'not found' });
+        let calNote = '';
+        if (body.status === 'approved') {
+          x.status = 'approved'; x.decided = Date.now();
+          if (!x.calEventId) { try { x.calEventId = addAwayEvent_(x); } catch (err) { calNote = String(err && err.message || err); } }
+        } else {
+          if (x.calEventId) { try { removeAwayEvent_(x.calEventId); x.calEventId = ''; } catch (err) { calNote = String(err && err.message || err); } }
+          if (body.status === 'delete') st.timeOff = st.timeOff.filter(t => t.id !== body.id);
+          else { x.status = 'declined'; x.decided = Date.now(); }
+        }
+        writeState_(st);
+        return json_({ ok: true, timeOff: st.timeOff, calNote: calNote });
+      });
+    }
     if (body.action === 'save') {
       if (String(body.pin) !== String(ADMIN_PIN)) return json_({ ok: false, error: 'wrong pin' });
       const lock = LockService.getScriptLock();
       lock.waitLock(20000);
       try {
         const st = body.state || {};
+        st.timeOff = readState_().timeOff;   // time-off requests are only changed by their own actions
+        delete st.calAway; delete st.calError;
         st.updatedAt = Date.now();
         writeState_(st);
         return json_({ ok: true, updatedAt: st.updatedAt });
@@ -70,7 +100,7 @@ function dataFile_() {
 }
 function readState_() {
   const st = JSON.parse(dataFile_().getBlob().getDataAsString() || '{}');
-  st.crew = st.crew || []; st.jobs = st.jobs || []; st.days = st.days || {}; st.weeks = st.weeks || {};
+  st.crew = st.crew || []; st.jobs = st.jobs || []; st.days = st.days || {}; st.weeks = st.weeks || {}; st.timeOff = st.timeOff || [];
   return st;
 }
 function writeState_(st) { dataFile_().setContent(JSON.stringify(st)); }
@@ -104,6 +134,12 @@ function boardWithCalendar_() {
       };
     });
     applyCalendar_(st, events, fmt(from), fmt(to));
+    const booked = {}; st.timeOff.forEach(t => { if (t.calEventId) booked[t.calEventId] = 1; });
+    st.calAway = events.filter(ev => ev.colorId === '8' && ev.summary && !booked[ev.id]).map(ev => {
+      const f = ev.start.date || ev.start.dateTime.slice(0, 10);
+      const t = ev.end.date ? addDays_(ev.end.date, -1) : f;
+      return { title: ev.summary.trim(), from: f, to: t < f ? f : t };
+    });
     st.calSync = Date.now();
   } catch (err) {
     st.calError = String(err && err.message || err);
@@ -152,6 +188,21 @@ function applyCalendar_(st, events, from, to) {
   });
 }
 
+/* approved time off goes on the Ridgeway Schedule as a grey all-day AWAY event */
+function ymdDate_(k) { const p = k.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+function addAwayEvent_(x) {
+  const ev = calendar_().createAllDayEvent('AWAY - ' + x.name, ymdDate_(x.from), ymdDate_(addDays_(x.to, 1)), { description: (x.note ? x.note + '\n' : '') + 'Booked through the Crew Job Board' });
+  ev.setColor('8');
+  return ev.getId();
+}
+function removeAwayEvent_(id) {
+  const ev = calendar_().getEventById(id);
+  if (ev) ev.deleteEvent();
+}
+function withLock_(fn) {
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try { return fn(); } finally { lock.releaseLock(); }
+}
 function json_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
 
 /** Run this once from the editor to grant calendar + Drive access and check everything works. */
