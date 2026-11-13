@@ -76,6 +76,10 @@ a{color:var(--deep)}
 .s-ms{background:#FDECEA}.s-ms h3{color:#B3261E}.s-ms li:before{content:"📏";font-size:16px}
 .s-lo{background:#FFE8A3;border:3px solid #E0A800}.s-lo h3{color:#7A4A00}.s-lo li:before{content:"⛔";font-size:16px}
 .s-br{background:var(--chip)}.s-br h3{color:var(--muted)}.s-br li:before{content:"•";color:var(--muted)}
+.s-nted{white-space:normal}
+.inote{display:block;width:100%;min-height:96px;resize:vertical;border:2px solid var(--line);border-radius:12px;background:var(--card);padding:10px 12px;font:700 18px/1.4 var(--font);color:var(--ink)}
+.inote:focus{outline:3px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.inote-st{min-height:18px;margin-top:4px;font-size:14px;font-weight:800;color:var(--muted)}
 .s-nt{background:var(--field);border:2px dashed var(--line);white-space:pre-wrap;font-weight:700}.s-nt h3{color:var(--muted)}
 .sfoot{display:flex;gap:8px;flex-wrap:wrap;padding:4px 18px 16px}
 /* week */
@@ -227,6 +231,7 @@ function load(quiet){
   fetch(API_URL+"?action=board&t="+Date.now()).then(function(r){return r.json();}).then(function(res){
     loading=false;
     if(!res||!res.ok)throw new Error(res&&res.error||"error");
+    if(typingNote()&&loaded)return;
     if(!modalEl.hidden&&loaded){render();return;}
     state=res.state;loaded=true;loadErr="";
     try{localStorage.setItem("cjb-cache",JSON.stringify(state));}catch(e){}
@@ -253,7 +258,7 @@ function askPin(){
   openModal('<h2>Manager PIN</h2><div><label>Enter your PIN to edit the board</label><input id="pin-in" type="password" inputmode="numeric" autocomplete="off"></div><div class="mrow"><button class="btn ghost" data-a="close">Cancel</button><button class="btn pri" data-a="checkPin">Unlock</button></div>');
   setTimeout(function(){var el=document.getElementById("pin-in");if(el)el.focus();},50);
 }
-document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving)load(true);});
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!typingNote())load(true);});
 setInterval(function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!editing())load(true);},5*60*1000);
 if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});}
 var tt=null;
@@ -314,7 +319,8 @@ function siteCard(it,i,n){
   h+=sec("s-do","To do today",lines(it.tasks));
   h+=sec("s-ms","Measure",lines(it.measure));
   h+=sec("s-br","Bring / load",lines(it.bring));
-  if(it.notes&&it.notes.trim())h+='<div class="sec s-nt"><h3>Notes</h3>'+esc(it.notes)+'</div>';
+  if(editing())h+='<div class="sec s-nt s-nted"><h3>Notes &amp; instructions for the crew</h3><textarea class="inote" data-inote="'+i+'" placeholder="Type instructions, details, who to see on site…">'+esc(it.notes||"")+'</textarea><div class="inote-st" data-inst="'+i+'"></div></div>';
+  else if(it.notes&&it.notes.trim())h+='<div class="sec s-nt"><h3>Notes &amp; instructions</h3>'+esc(it.notes)+'</div>';
   if(editing()){
     h+='<div class="sfoot"><button class="btn sm pri" data-a="editItem" data-i="'+i+'">Edit</button><button class="btn sm" data-a="repeatItem" data-i="'+i+'">Repeat next day</button>'+(i>0?'<button class="btn sm" data-a="up" data-i="'+i+'">↑</button>':'')+(i<n-1?'<button class="btn sm" data-a="down" data-i="'+i+'">↓</button>':'')+'<button class="btn sm danger" data-a="delItem" data-i="'+i+'">Remove</button></div>';
   }
@@ -487,6 +493,20 @@ modalEl.addEventListener("click",function(e){if(e.target===modalEl)closeModal();
 document.addEventListener("input",function(e){if(e.target.id==="jq"){q=e.target.value;var p=e.target.selectionStart;render();var el=document.getElementById("jq");el.focus();try{el.setSelectionRange(p,p);}catch(x){}}});
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!modalEl.hidden)closeModal();if(e.key==="Enter"&&e.target.id==="pin-in"){var pb=document.querySelector('[data-a="checkPin"]');if(pb)pb.click();}if(e.key==="Enter"&&e.target.id==="newCrew"){var bb=document.querySelector('[data-a="addCrew"]');if(bb)bb.click();}});
 
+/* inline notes on site cards (manager): saves when you tap away, or after 2 s of no typing */
+var noteTimer=null;
+function noteSave(el){
+  var i=+el.getAttribute("data-inote"),d=state.days[cur];if(!d||!d.items[i])return;
+  if((d.items[i].notes||"")===el.value)return;
+  d.items[i].notes=el.value;
+  var st=document.querySelector('[data-inst="'+i+'"]');if(st)st.textContent="Saving…";
+  state.updatedAt=Date.now();try{localStorage.setItem("cjb-cache",JSON.stringify(state));}catch(e){}
+  saving=true;
+  post({action:"save",pin:pin,state:state}).then(function(r){saving=false;var s2=document.querySelector('[data-inst="'+i+'"]');if(s2)s2.textContent=(r&&r.ok)?"✓ Saved — crew can see it":"Couldn't save — tap away to try again";if(r&&r.ok)state.updatedAt=r.updatedAt;}).catch(function(){saving=false;var s2=document.querySelector('[data-inst="'+i+'"]');if(s2)s2.textContent="No signal — will try again when you tap away";d.items[i].notes=(d.items[i].notes||"")+"";});
+}
+document.addEventListener("input",function(e){if(e.target.classList&&e.target.classList.contains("inote")){var el=e.target;var st=document.querySelector('[data-inst="'+el.getAttribute("data-inote")+'"]');if(st)st.textContent="…";clearTimeout(noteTimer);noteTimer=setTimeout(function(){noteSave(el);},2000);}});
+document.addEventListener("focusout",function(e){if(e.target.classList&&e.target.classList.contains("inote")){clearTimeout(noteTimer);noteSave(e.target);}});
+function typingNote(){var a=document.activeElement;return !!(a&&a.classList&&a.classList.contains("inote"));}
 /* manager unlock: tap the logo 5 times quickly, or hold it 2 seconds (same as Shop Cuts) */
 (function(){
   var t=null,taps=[],touched=false;
