@@ -430,19 +430,19 @@ function rangeText(f,t){
 }
 var offForm={name:"",other:"",from:"",to:"",note:""};
 function renderOff(){
-  var today=realToday(),h='<div class="nav"><h1>Time Off<small>Book days away · Matt approves</small></h1></div>';
+  var today=realToday(),h='<div class="nav"><h1>Time Off<small>Book days away</small></h1></div>';
   if(!offForm.from){offForm.from=todayKey();offForm.to=todayKey();}
-  h+='<div class="offform"><h2>Book time away</h2>';
+  h+='<div class="offform"><h2>Book time off</h2>';
   h+='<div class="row2"><div><label>Your name</label><select id="o-name"><option value="">Pick your name…</option>'+state.crew.map(function(c){return '<option'+(offForm.name===c.name?' selected':'')+'>'+esc(c.name)+'</option>';}).join("")+'<option value="__other"'+(offForm.name==="__other"?' selected':'')+'>Someone else…</option></select></div>';
   h+='<div'+(offForm.name==="__other"?'':' hidden')+' id="o-otherwrap"><label>Name</label><input id="o-other" value="'+esc(offForm.other)+'" placeholder="First and last name"></div></div>';
   h+='<div class="row2"><div><label>First day off</label><input type="date" id="o-from" value="'+offForm.from+'"></div><div><label>Last day off</label><input type="date" id="o-to" value="'+offForm.to+'"></div></div>';
   h+='<div><label>Reason <i>(optional)</i></label><input id="o-note" value="'+esc(offForm.note)+'" placeholder="Appointment, holiday, family…"></div>';
-  h+='<div class="mrow"><button class="btn pri" data-a="offSend">Send request</button></div></div>';
+  h+='<div class="mrow"><button class="btn pri" data-a="offSend">Send</button></div></div>';
   var list=(state.timeOff||[]).filter(function(t){return t.to>=today;}).slice().sort(function(a,b){return a.from<b.from?-1:a.from>b.from?1:0;});
   var pend=list.filter(function(t){return t.status==="pending";});
   var rest=list.filter(function(t){return t.status!=="pending";});
   var cal=(state.calAway||[]).filter(function(a){return a.to>=today;});
-  if(pend.length){h+='<h3 class="offh">Waiting for Matt ('+pend.length+')</h3>';pend.forEach(function(t){h+=offRow(t);});}
+  if(pend.length){h+='<h3 class="offh">Pending ('+pend.length+')</h3>';pend.forEach(function(t){h+=offRow(t);});}
   h+='<h3 class="offh">Coming up</h3>';
   if(!rest.length&&!cal.length)h+='<div class="empty" style="padding:18px">Nobody has time booked off.</div>';
   rest.forEach(function(t){h+=offRow(t);});
@@ -479,9 +479,9 @@ function offSend(btn){
   if(!apiReady()){toast("Not connected yet");return;}
   btn.textContent="Sending…";btn.disabled=true;
   post({action:"requestOff",request:{name:name,from:offForm.from,to:offForm.to,note:offForm.note.trim()}}).then(function(r){
-    if(r&&r.ok){state.timeOff=(state.timeOff||[]).concat([r.item]);offForm={name:"",other:"",from:"",to:"",note:""};render();toast("Sent — it shows as Pending until Matt approves");}
-    else{btn.textContent="Send request";btn.disabled=false;toast((r&&r.error)||"Couldn't send — try again");}
-  }).catch(function(){btn.textContent="Send request";btn.disabled=false;toast("Couldn't send — check your signal");});
+    if(r&&r.ok){state.timeOff=(state.timeOff||[]).concat([r.item]);offForm={name:"",other:"",from:"",to:"",note:""};render();toast("Sent");}
+    else{btn.textContent="Send";btn.disabled=false;toast((r&&r.error)||"Couldn't send — try again");}
+  }).catch(function(){btn.textContent="Send";btn.disabled=false;toast("Couldn't send — check your signal");});
 }
 function offSet(id,s,btn){
   if(s==="delete"&&!btn.getAttribute("data-armed")){btn.setAttribute("data-armed","1");btn.textContent="Tap again";return;}
