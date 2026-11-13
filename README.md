@@ -19,7 +19,7 @@ Everything typed on a card (crew, leave-offs, to-dos, measures, notes) is kept i
 - `manifest.webmanifest`, `sw.js`, icons — home-screen app + works with no signal (shows the last copy).
 
 ## Backend setup (once)
-1. Signed in to the Google account that owns the **Ridgeway Schedule** calendar, go to script.google.com → **New project**, name it **Crew Job Board**.
+1. Signed in to matt@ridgewayaluminum.com (it has access to the **Ridgeway Schedule** calendar, ID `m.lieuwen@gmail.com`), go to script.google.com → **New project**, name it **Crew Job Board**.
 2. Replace the contents of `Code.gs` with `apps-script/Code.gs` from this repo. Change `ADMIN_PIN` at the top.
 3. Project Settings → tick **Show "appsscript.json" manifest file**, then replace it with `apps-script/appsscript.json`.
 4. Pick `testSetup` in the function menu → **Run** → allow access. The log should say how many site cards it found.

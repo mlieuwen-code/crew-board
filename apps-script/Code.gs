@@ -15,7 +15,8 @@
 
 // ===== Settings you can change =====
 const ADMIN_PIN = '2468';                      // change this to your own PIN before deploying
-const CALENDAR_NAME = 'Ridgeway Schedule';     // the calendar to read; falls back to your main calendar
+const CALENDAR_ID = 'm.lieuwen@gmail.com';     // the Ridgeway Schedule calendar (shared with matt@ridgewayaluminum.com)
+const CALENDAR_NAME = 'Ridgeway Schedule';     // used if the ID can't be opened
 const DATA_FILE_NAME = 'Crew Job Board - data.json';
 const DAYS_BACK = 7;                           // calendar days to read before this week's Monday
 const DAYS_AHEAD = 42;                         // and how far ahead
@@ -76,8 +77,12 @@ function writeState_(st) { dataFile_().setContent(JSON.stringify(st)); }
 
 /* ---------- calendar ---------- */
 function calendar_() {
-  const named = CalendarApp.getCalendarsByName(CALENDAR_NAME);
-  return named.length ? named[0] : CalendarApp.getDefaultCalendar();
+  let cal = null;
+  try { cal = CalendarApp.getCalendarById(CALENDAR_ID); } catch (x) {}
+  if (!cal) { try { cal = CalendarApp.subscribeToCalendar(CALENDAR_ID, { hidden: true }); } catch (x) {} }
+  if (!cal) { const named = CalendarApp.getCalendarsByName(CALENDAR_NAME); if (named.length) cal = named[0]; }
+  if (!cal) throw new Error('Can\'t open the Ridgeway Schedule calendar from this Google account');
+  return cal;
 }
 function boardWithCalendar_() {
   const st = readState_();
