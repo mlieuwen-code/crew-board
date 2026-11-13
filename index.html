@@ -138,6 +138,7 @@ a{color:var(--deep)}
 .offform label{font-size:14px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px}
 .offform label i{font-style:normal;text-transform:none;font-weight:700;letter-spacing:0}
 .offform input,.offform select{width:100%;min-height:52px;border-radius:14px;border:2px solid var(--line);background:var(--field);padding:8px 14px;font-size:18px;font-weight:700}
+.offsent{background:var(--done);color:var(--doneink);border-radius:16px;padding:14px 16px;font-weight:900;margin-top:12px;max-width:760px}
 .offh{font-size:15px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:22px 2px 8px}
 .offrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:var(--card);border-radius:16px;padding:12px 14px;margin-bottom:8px;box-shadow:0 2px 0 var(--line);border-left:8px solid #999;max-width:760px}
 .offrow .o-main{flex:1;min-width:180px}.offrow b{display:block;font-size:20px;font-weight:900}.offrow span{font-weight:800;color:var(--muted)}.offrow em{display:block;font-style:normal;font-weight:700;margin-top:2px}
@@ -253,7 +254,7 @@ function load(quiet){
     if(!res||!res.ok)throw new Error(res&&res.error||"error");
     if(typingNote()&&loaded)return;
     if(!modalEl.hidden&&loaded){render();return;}
-    state=res.state;loaded=true;loadErr="";
+    state=res.state;loaded=true;loadErr="";if(editing())loadOffList();
     try{localStorage.setItem("cjb-cache",JSON.stringify(state));}catch(e){}
     render();
   }).catch(function(e){loading=false;loadErr=navigator.onLine===false?"offline":"error";render();});
@@ -428,7 +429,8 @@ function rangeText(f,t){
   var a=DN[parse(f).getDay()].slice(0,3)+" "+shortDate(f);
   return (f===t?a:a+" – "+DN[parse(t).getDay()].slice(0,3)+" "+shortDate(t))+" · "+n+" work day"+(n===1?"":"s");
 }
-var offForm={name:"",other:"",from:"",to:"",note:""};
+var offForm={name:"",other:"",from:"",to:"",note:""},offFull=null,offSent=false,offLoading=false;
+function loadOffList(){if(!pin||offLoading||!apiReady())return;offLoading=true;post({action:"listOff",pin:pin}).then(function(r){offLoading=false;if(r&&r.ok){offFull=r.timeOff;render();}}).catch(function(){offLoading=false;});}
 function renderOff(){
   var today=realToday(),h='<div class="nav"><h1>Time Off<small>Book days away</small></h1></div>';
   if(!offForm.from){offForm.from=todayKey();offForm.to=todayKey();}
@@ -438,7 +440,10 @@ function renderOff(){
   h+='<div class="row2"><div><label>First day off</label><input type="date" id="o-from" value="'+offForm.from+'"></div><div><label>Last day off</label><input type="date" id="o-to" value="'+offForm.to+'"></div></div>';
   h+='<div><label>Reason <i>(optional)</i></label><input id="o-note" value="'+esc(offForm.note)+'" placeholder="Appointment, holiday, family…"></div>';
   h+='<div class="mrow"><button class="btn pri" data-a="offSend">Send</button></div></div>';
-  var list=(state.timeOff||[]).filter(function(t){return t.to>=today;}).slice().sort(function(a,b){return a.from<b.from?-1:a.from>b.from?1:0;});
+  if(offSent)h+='<div class="offsent">✓ Sent. You\'ll hear back from the office.</div>';
+  if(!editing())return h;
+  if(offFull===null){loadOffList();return h+'<div class="empty" style="padding:18px">Loading requests…</div>';}
+  var list=(offFull||[]).filter(function(t){return t.to>=today;}).slice().sort(function(a,b){return a.from<b.from?-1:a.from>b.from?1:0;});
   var pend=list.filter(function(t){return t.status==="pending";});
   var rest=list.filter(function(t){return t.status!=="pending";});
   var cal=(state.calAway||[]).filter(function(a){return a.to>=today;});
@@ -460,7 +465,7 @@ function offRow(t){
   }
   return h+'</div>';
 }
-function offCount(){return (state.timeOff||[]).filter(function(t){return t.status==="pending"&&t.to>=realToday();}).length;}
+function offCount(){return (offFull||[]).filter(function(t){return t.status==="pending"&&t.to>=realToday();}).length;}
 function readOffForm(){
   var g=function(id){var el=document.getElementById(id);return el?el.value:"";};
   offForm.name=g("o-name");offForm.other=g("o-other");offForm.from=g("o-from");offForm.to=g("o-to");offForm.note=g("o-note");
@@ -479,7 +484,7 @@ function offSend(btn){
   if(!apiReady()){toast("Not connected yet");return;}
   btn.textContent="Sending…";btn.disabled=true;
   post({action:"requestOff",request:{name:name,from:offForm.from,to:offForm.to,note:offForm.note.trim()}}).then(function(r){
-    if(r&&r.ok){state.timeOff=(state.timeOff||[]).concat([r.item]);offForm={name:"",other:"",from:"",to:"",note:""};render();toast("Sent");}
+    if(r&&r.ok){offForm={name:"",other:"",from:"",to:"",note:""};offSent=true;offFull=null;render();toast("Sent");}
     else{btn.textContent="Send";btn.disabled=false;toast((r&&r.error)||"Couldn't send — try again");}
   }).catch(function(){btn.textContent="Send";btn.disabled=false;toast("Couldn't send — check your signal");});
 }
@@ -487,7 +492,7 @@ function offSet(id,s,btn){
   if(s==="delete"&&!btn.getAttribute("data-armed")){btn.setAttribute("data-armed","1");btn.textContent="Tap again";return;}
   btn.textContent="…";
   post({action:"offStatus",pin:pin,id:id,status:s}).then(function(r){
-    if(r&&r.ok){state.timeOff=r.timeOff;render();toast(r.calNote?("Saved, but the calendar said: "+r.calNote):({approved:"Approved — added to your calendar",declined:"Declined",delete:"Deleted"}[s]));}
+    if(r&&r.ok){offFull=r.timeOff;state.timeOff=r.timeOff.filter(function(t){return t.status==="approved";});render();toast(r.calNote?("Saved, but the calendar said: "+r.calNote):({approved:"Approved — added to your calendar",declined:"Declined",delete:"Deleted"}[s]));}
     else if(r&&r.error==="wrong pin"){toast("PIN changed — unlock again");}
     else toast("Couldn't save — try again");
   }).catch(function(){toast("Couldn't save — check your signal");render();});
@@ -560,7 +565,7 @@ document.addEventListener("click",function(e){
     save("Note copied to "+longDate(hk));
   })();break;
   case "lock":pin="";editMode=false;try{localStorage.removeItem("cjb-pin");localStorage.setItem("cjb-edit","0");}catch(x){}render();toast("Locked — tap the logo 5 times to unlock");break;
-  case "checkPin":var pv=document.getElementById("pin-in").value.trim();if(!pv)return;b.textContent="Checking…";post({action:"checkPin",pin:pv}).then(function(r){if(r&&r.ok){pin=pv;try{localStorage.setItem("cjb-pin",pv);}catch(x){}editMode=true;try{localStorage.setItem("cjb-edit","1");}catch(x){}closeModal();render();toast("Unlocked on this device");}else{b.textContent="Unlock";toast("Wrong PIN");}}).catch(function(){b.textContent="Unlock";toast("Couldn't check — no signal?");});break;
+  case "checkPin":var pv=document.getElementById("pin-in").value.trim();if(!pv)return;b.textContent="Checking…";post({action:"checkPin",pin:pv}).then(function(r){if(r&&r.ok){pin=pv;try{localStorage.setItem("cjb-pin",pv);}catch(x){}editMode=true;try{localStorage.setItem("cjb-edit","1");}catch(x){}closeModal();render();loadOffList();toast("Unlocked on this device");}else{b.textContent="Unlock";toast("Wrong PIN");}}).catch(function(){b.textContent="Unlock";toast("Couldn't check — no signal?");});break;
   case "prevDay":go("day",addWorkdays(cur,-1));break;
   case "nextDay":go("day",addWorkdays(cur,1));break;
   case "toToday":go("day",todayKey());break;
