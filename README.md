@@ -5,7 +5,7 @@ the site, address with a map link, site super with tap-to-call, what to do, what
 and what to leave off for site access.
 
 - **Crew link:** `https://mlieuwen-code.github.io/crew-board/` — view only, no login. Add it to the home screen like an app.
-- **Manager link (Matt):** `https://mlieuwen-code.github.io/crew-board/?manager` — tap ✎ Edit and enter the PIN once per device.
+- **Manager (Matt):** same link — tap the logo 5 times (or hold it 2 seconds) and enter the PIN. It stays unlocked on that device until you tap 🔒.
 
 The schedule comes straight from the **Ridgeway Schedule** Google Calendar every time the app opens
 (blue = Install, red = Measure, green = Fab, pink = Pickup/Delivery, purple/orange = Other, grey "Away" skipped).

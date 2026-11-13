@@ -26,6 +26,8 @@ a{color:var(--deep)}
 .wrap{max-width:1500px;margin:0 auto;padding:max(14px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) calc(60px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
 .top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:14px;flex:1;min-width:240px}
+#logo{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:pointer}
+#logo svg{pointer-events:none}
 .logo{width:52px;height:52px;border-radius:16px;overflow:hidden;flex-shrink:0}
 .brand b{display:block;font-size:24px;font-weight:900;line-height:1.1}
 .eyebrow{font-size:13px;font-weight:800;color:var(--muted);letter-spacing:.6px;text-transform:uppercase}
@@ -130,7 +132,10 @@ a{color:var(--deep)}
   body{font-size:17px}
   .brand{min-width:0}
   .brand .eyebrow{display:none}
-  .brand b{font-size:21px}
+  .brand b{font-size:21px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand>div:last-child{min-width:0}
+  .top{gap:8px;flex-wrap:nowrap}
+  .top .btn{padding:0 12px}
   .logo{width:42px;height:42px;border-radius:13px}
   .logo svg{width:42px;height:42px}
   .top .btn{min-height:46px;padding:0 14px}
@@ -182,7 +187,6 @@ var TYPES=[
 var LOGO='<svg width="52" height="52" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" fill="#E8590C"/><rect x="96" y="150" width="320" height="34" rx="10" fill="#1F1B17"/><rect x="96" y="330" width="320" height="26" rx="8" fill="#1F1B17"/><rect x="110" y="150" width="30" height="230" rx="8" fill="#1F1B17"/><rect x="372" y="150" width="30" height="230" rx="8" fill="#1F1B17"/><g fill="#1F1B17"><rect x="170" y="184" width="12" height="146"/><rect x="210" y="184" width="12" height="146"/><rect x="250" y="184" width="12" height="146"/><rect x="290" y="184" width="12" height="146"/><rect x="330" y="184" width="12" height="146"/></g><path d="M186 262 l44 44 l96 -104" fill="none" stroke="#FFFDF9" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 var API_URL="__API_URL__";
-var MANAGER=/[?&]manager\b/.test(location.search);
 var state={crew:[],jobs:[],days:{},weeks:{}};
 try{var cached=localStorage.getItem("cjb-cache");if(cached)state=JSON.parse(cached);}catch(e){}
 var loaded=false,loading=false,loadErr="",pin="";
@@ -213,7 +217,7 @@ function day(k){return state.days[k]||{note:"",items:[]};}
 function lines(s){return String(s||"").split(/\n/).map(function(x){return x.replace(/^\s*[-•*]\s*/,"").trim();}).filter(Boolean);}
 function phoneLinks(t){return esc(t).replace(/(\+?1[\s.-]?)?\(?(\d{3})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})/g,function(m0,p,a,b,c){return '<a class="tel" href="tel:+1'+a+b+c+'">'+m0+'</a>';});}
 function mapUrl(a){return "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(a);}
-function editing(){return MANAGER&&editMode&&!!pin;}
+function editing(){return editMode&&!!pin;}
 
 /* ---------- server (Google Apps Script) ---------- */
 function apiReady(){return API_URL&&API_URL.indexOf("__")!==0;}
@@ -267,9 +271,9 @@ window.addEventListener("hashchange",function(){readHash();render();});
 
 /* ---------- render ---------- */
 function render(){
-  var h='<div class="stick"><div class="top"><div class="brand"><div class="logo">'+LOGO+'</div><div><div class="eyebrow">Ridgeway Aluminum · Railings</div><b>Crew Job Board</b></div></div>';
+  var h='<div class="stick"><div class="top"><div class="brand"><div class="logo" id="logo">'+LOGO+'</div><div><div class="eyebrow">Ridgeway Aluminum · Railings</div><b>Crew Job Board</b></div></div>';
   h+='<button class="btn ghost" data-a="refresh" aria-label="Refresh">'+(loading?'…':'↻')+'</button>';
-  if(MANAGER){h+='<button class="btn '+(editing()?'org':'ghost')+'" data-a="toggleEdit">'+(editing()?'✓ Done editing':'✎ Edit')+'</button>';}
+  if(pin){h+='<button class="btn '+(editing()?'org':'ghost')+'" data-a="toggleEdit">'+(editing()?'✓ Done':'✎ Edit')+'</button>';if(editing())h+='<button class="btn ghost" data-a="lock" aria-label="Lock">🔒</button>';}
   h+='</div>';
   h+='<div class="tabs">'+tab("day","Day")+tab("week","Week")+tab("jobs","Jobsites")+(editing()?tab("crew","Crew"):"")+'</div></div>';
   if(loadErr==="setup")h+='<div class="editbar"><span>Not connected to the calendar yet — paste the Apps Script web app URL into API_URL.</span></div>';
@@ -435,6 +439,7 @@ document.addEventListener("click",function(e){
   case "go":go(b.getAttribute("data-v"),view==="jobs"||view==="crew"?null:cur);break;
   case "toggleEdit":if(editing()){editMode=false;}else if(!pin){askPin();break;}else{editMode=true;}try{localStorage.setItem("cjb-edit",editMode?"1":"0");}catch(x){}render();break;
   case "refresh":load();break;
+  case "lock":pin="";editMode=false;try{localStorage.removeItem("cjb-pin");localStorage.setItem("cjb-edit","0");}catch(x){}render();toast("Locked — tap the logo 5 times to unlock");break;
   case "checkPin":var pv=document.getElementById("pin-in").value.trim();if(!pv)return;b.textContent="Checking…";post({action:"checkPin",pin:pv}).then(function(r){if(r&&r.ok){pin=pv;try{localStorage.setItem("cjb-pin",pv);}catch(x){}editMode=true;try{localStorage.setItem("cjb-edit","1");}catch(x){}closeModal();render();toast("Unlocked on this device");}else{b.textContent="Unlock";toast("Wrong PIN");}}).catch(function(){b.textContent="Unlock";toast("Couldn't check — no signal?");});break;
   case "prevDay":go("day",addWorkdays(cur,-1));break;
   case "nextDay":go("day",addWorkdays(cur,1));break;
@@ -482,6 +487,18 @@ modalEl.addEventListener("click",function(e){if(e.target===modalEl)closeModal();
 document.addEventListener("input",function(e){if(e.target.id==="jq"){q=e.target.value;var p=e.target.selectionStart;render();var el=document.getElementById("jq");el.focus();try{el.setSelectionRange(p,p);}catch(x){}}});
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!modalEl.hidden)closeModal();if(e.key==="Enter"&&e.target.id==="pin-in"){var pb=document.querySelector('[data-a="checkPin"]');if(pb)pb.click();}if(e.key==="Enter"&&e.target.id==="newCrew"){var bb=document.querySelector('[data-a="addCrew"]');if(bb)bb.click();}});
 
+/* manager unlock: tap the logo 5 times quickly, or hold it 2 seconds (same as Shop Cuts) */
+(function(){
+  var t=null,taps=[],touched=false;
+  function onLogo(e){return e.target&&e.target.closest&&e.target.closest("#logo");}
+  function open(){clearTimeout(t);t=null;taps=[];if(pin){editMode=true;try{localStorage.setItem("cjb-edit","1");}catch(x){}render();toast("Editing");}else askPin();}
+  function down(){clearTimeout(t);t=setTimeout(open,2000);}
+  function up(){if(t){clearTimeout(t);t=null;var now=Date.now();taps=taps.filter(function(x){return now-x<3000;});taps.push(now);if(taps.length>=5)open();}}
+  document.addEventListener("touchstart",function(e){if(!onLogo(e))return;touched=true;e.preventDefault();down();},{passive:false});
+  document.addEventListener("touchend",function(e){if(!onLogo(e))return;e.preventDefault();up();},{passive:false});
+  document.addEventListener("mousedown",function(e){if(touched||!onLogo(e))return;down();});
+  document.addEventListener("mouseup",function(e){if(touched||!onLogo(e))return;up();});
+})();
 var tx=null,ty=null;
 document.addEventListener("touchstart",function(e){if(view!=="day"||!modalEl.hidden||e.touches.length!==1){tx=null;return;}tx=e.touches[0].clientX;ty=e.touches[0].clientY;},{passive:true});
 document.addEventListener("touchend",function(e){if(tx===null)return;var dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;tx=null;if(Math.abs(dx)>70&&Math.abs(dx)>Math.abs(dy)*1.8){go("day",addWorkdays(cur,dx<0?1:-1));}},{passive:true});
