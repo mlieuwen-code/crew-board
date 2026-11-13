@@ -79,6 +79,7 @@ a{color:var(--deep)}
 .s-nted{white-space:normal}
 .inote{display:block;width:100%;min-height:96px;resize:vertical;border:2px solid var(--line);border-radius:12px;background:var(--card);padding:10px 12px;font:700 18px/1.4 var(--font);color:var(--ink)}
 .inote:focus{outline:3px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.noterow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px}.noterow .inote-st{flex:1;margin:0}
 .inote-st{min-height:18px;margin-top:4px;font-size:14px;font-weight:800;color:var(--muted)}
 .s-nt{background:var(--field);border:2px dashed var(--line);white-space:pre-wrap;font-weight:700}.s-nt h3{color:var(--muted)}
 .sfoot{display:flex;gap:8px;flex-wrap:wrap;padding:4px 18px 16px}
@@ -123,7 +124,7 @@ a{color:var(--deep)}
 .pick.lead{background:var(--deep);border-color:var(--orange);color:#fff}
 .mrow{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px}
 .mrow .sp{flex:1}
-.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:60;background:#1F1B17;color:#fff;font-size:18px;font-weight:800;padding:14px 24px;border-radius:999px;transition:opacity .35s}
+.toast{pointer-events:none;position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:60;background:#1F1B17;color:#fff;font-size:18px;font-weight:800;padding:14px 24px;border-radius:999px;transition:opacity .35s}
 .toast.out{opacity:0}
 .ro{color:var(--muted);font-size:14px;font-weight:700;text-align:center;margin-top:28px}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px;font-weight:800;color:var(--muted);margin:16px 2px 0}
@@ -319,7 +320,7 @@ function siteCard(it,i,n){
   h+=sec("s-do","To do today",lines(it.tasks));
   h+=sec("s-ms","Measure",lines(it.measure));
   h+=sec("s-br","Bring / load",lines(it.bring));
-  if(editing())h+='<div class="sec s-nt s-nted"><h3>Notes &amp; instructions for the crew</h3><textarea class="inote" data-inote="'+i+'" placeholder="Type instructions, details, who to see on site…">'+esc(it.notes||"")+'</textarea><div class="inote-st" data-inst="'+i+'"></div></div>';
+  if(editing())h+='<div class="sec s-nt s-nted"><h3>Notes &amp; instructions for the crew</h3><textarea class="inote" data-inote="'+i+'" placeholder="Type instructions, details, who to see on site…">'+esc(it.notes||"")+'</textarea><div class="noterow"><div class="inote-st" data-inst="'+i+'"></div><button class="btn sm ghost" data-a="noteNext" data-i="'+i+'">Copy note to next '+esc(j.name)+' day →</button></div></div>';
   else if(it.notes&&it.notes.trim())h+='<div class="sec s-nt"><h3>Notes &amp; instructions</h3>'+esc(it.notes)+'</div>';
   if(editing()){
     h+='<div class="sfoot"><button class="btn sm pri" data-a="editItem" data-i="'+i+'">Edit</button><button class="btn sm" data-a="repeatItem" data-i="'+i+'">Repeat next day</button>'+(i>0?'<button class="btn sm" data-a="up" data-i="'+i+'">↑</button>':'')+(i<n-1?'<button class="btn sm" data-a="down" data-i="'+i+'">↓</button>':'')+'<button class="btn sm danger" data-a="delItem" data-i="'+i+'">Remove</button></div>';
@@ -445,6 +446,19 @@ document.addEventListener("click",function(e){
   case "go":go(b.getAttribute("data-v"),view==="jobs"||view==="crew"?null:cur);break;
   case "toggleEdit":if(editing()){editMode=false;}else if(!pin){askPin();break;}else{editMode=true;}try{localStorage.setItem("cjb-edit",editMode?"1":"0");}catch(x){}render();break;
   case "refresh":load();break;
+  case "noteNext":(function(){
+    var ta=document.querySelector('[data-inote="'+i+'"]'),src=day(cur).items[i];if(!src)return;
+    if(ta)src.notes=ta.value;
+    if(!src.notes||!src.notes.trim()){toast("Type a note first");return;}
+    var same=function(it){return src.jobId?it.jobId===src.jobId:(it.jobName||"")===(src.jobName||"");};
+    var ks=Object.keys(state.days).filter(function(k){return k>cur;}).sort(),hit=null,hk=null;
+    for(var n=0;n<ks.length&&!hit;n++){var f=state.days[ks[n]].items.filter(same)[0];if(f){hit=f;hk=ks[n];}}
+    var nm=(job(src.jobId)||{name:src.jobName||"this job"}).name;
+    if(!hit){toast("No later day with "+nm+" on the schedule yet");return;}
+    var t=src.notes.trim();
+    if((hit.notes||"").indexOf(t)===-1)hit.notes=(hit.notes&&hit.notes.trim()?hit.notes.trim()+"\n":"")+t;
+    save("Note copied to "+longDate(hk));
+  })();break;
   case "lock":pin="";editMode=false;try{localStorage.removeItem("cjb-pin");localStorage.setItem("cjb-edit","0");}catch(x){}render();toast("Locked — tap the logo 5 times to unlock");break;
   case "checkPin":var pv=document.getElementById("pin-in").value.trim();if(!pv)return;b.textContent="Checking…";post({action:"checkPin",pin:pv}).then(function(r){if(r&&r.ok){pin=pv;try{localStorage.setItem("cjb-pin",pv);}catch(x){}editMode=true;try{localStorage.setItem("cjb-edit","1");}catch(x){}closeModal();render();toast("Unlocked on this device");}else{b.textContent="Unlock";toast("Wrong PIN");}}).catch(function(){b.textContent="Unlock";toast("Couldn't check — no signal?");});break;
   case "prevDay":go("day",addWorkdays(cur,-1));break;
