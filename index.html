@@ -23,7 +23,7 @@ button,input,textarea,select{font-family:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 a{color:var(--deep)}
-.wrap{max-width:1500px;margin:0 auto;padding:18px 16px 60px}
+.wrap{max-width:1500px;margin:0 auto;padding:max(14px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) calc(60px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
 .top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:14px;flex:1;min-width:240px}
 .logo{width:52px;height:52px;border-radius:16px;overflow:hidden;flex-shrink:0}
@@ -47,8 +47,8 @@ a{color:var(--deep)}
 .daynote{background:var(--tint2);color:var(--deep);border-radius:18px;padding:14px 18px;font-weight:800;margin-bottom:14px;white-space:pre-wrap;border-left:8px solid var(--accent)}
 .empty{background:var(--card);border-radius:22px;padding:28px;text-align:center;color:var(--muted);font-weight:700}
 /* site cards */
-.sites{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:16px;align-items:start}
-@media(max-width:520px){.sites{grid-template-columns:1fr}}
+.sites{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;align-items:start}
+@media(max-width:700px){.sites{grid-template-columns:1fr}}
 .site{background:var(--card);border-radius:22px;box-shadow:0 2px 0 var(--line);overflow:hidden;border-top:10px solid var(--tc,#888)}
 .shead{padding:16px 18px 10px;display:flex;gap:12px;align-items:flex-start}
 .shead .t{flex:1;min-width:0}
@@ -77,8 +77,9 @@ a{color:var(--deep)}
 .s-nt{background:var(--field);border:2px dashed var(--line);white-space:pre-wrap;font-weight:700}.s-nt h3{color:var(--muted)}
 .sfoot{display:flex;gap:8px;flex-wrap:wrap;padding:4px 18px 16px}
 /* week */
-.week{display:grid;grid-template-columns:repeat(5,minmax(200px,1fr));gap:12px;overflow-x:auto}
-@media(max-width:900px){.week{grid-template-columns:1fr}}
+.week{display:grid;grid-template-columns:repeat(5,minmax(180px,1fr));gap:12px}
+@media(max-width:1000px){.week{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}}
+@media(max-width:560px){.week{grid-template-columns:1fr}.wday{min-height:0}}
 .caltitle{margin-top:6px;font-size:18px;font-weight:900;color:var(--ink)}
 .calbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:-4px 0 14px}
 .calbar span{color:var(--muted);font-weight:700;font-size:15px}
@@ -121,6 +122,47 @@ a{color:var(--deep)}
 .ro{color:var(--muted);font-size:14px;font-weight:700;text-align:center;margin-top:28px}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px;font-weight:800;color:var(--muted);margin:16px 2px 0}
 .legend i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:5px}
+
+/* ---- sticky header so day/week switching is always in reach ---- */
+.stick{position:sticky;top:0;z-index:20;background:var(--bg);margin:0 -16px;padding:0 16px;box-shadow:0 6px 10px -10px rgba(0,0,0,.25)}
+/* ---- phone ---- */
+@media(max-width:560px){
+  body{font-size:17px}
+  .brand{min-width:0}
+  .brand .eyebrow{display:none}
+  .brand b{font-size:21px}
+  .logo{width:42px;height:42px;border-radius:13px}
+  .logo svg{width:42px;height:42px}
+  .top .btn{min-height:46px;padding:0 14px}
+  .tabs{padding:10px 0 4px}
+  .tab{flex:1 1 0;min-height:48px;padding:0 8px;font-size:16px;border-radius:14px}
+  .nav{gap:8px;margin:10px 0 12px}
+  .nav h1{order:2;flex:1 1 calc(100% - 128px);min-width:0;text-align:center;font-size:26px}
+  .nav h1 small{font-size:15px}
+  .nav .round{order:1;width:48px;height:48px}
+  .nav .round+h1+.round,.nav h1+.round{order:3}
+  .nav .btn{order:4;flex:1 1 40%}
+  .editbar{padding:8px 10px}.editbar span{flex-basis:100%}.editbar .btn{flex:1 1 auto}
+  .daynote{padding:12px 14px}
+  .site{border-radius:18px}
+  .shead{padding:14px 14px 8px;gap:10px}
+  .shead h2{font-size:24px}
+  .num{width:38px;height:38px;font-size:19px;border-radius:11px}
+  .crew{padding:0 14px 8px}
+  .addr{margin:0 12px 10px;padding:10px 12px}
+  .sec{margin:0 12px 10px;padding:9px 12px}
+  .sec li{font-size:18px;padding-left:28px}
+  .sfoot{padding:4px 12px 14px}.sfoot .btn{flex:1 1 auto}
+  .box2{padding:18px;border-radius:20px}
+  .modal{padding:10px 8px;align-items:flex-start}
+  .dir{grid-template-columns:1fr}
+  .toast{white-space:normal;max-width:92vw;text-align:center;bottom:calc(16px + env(safe-area-inset-bottom))}
+}
+/* ---- tablet ---- */
+@media(min-width:561px) and (max-width:1100px){
+  .shead h2{font-size:26px}
+}
+@media(hover:none){.btn,.tab,.round,.wcard,.pick{-webkit-tap-highlight-color:transparent}}
 </style>
 </head><body>
 <div class="wrap" id="root"></div>
@@ -225,11 +267,11 @@ window.addEventListener("hashchange",function(){readHash();render();});
 
 /* ---------- render ---------- */
 function render(){
-  var h='<div class="top"><div class="brand"><div class="logo">'+LOGO+'</div><div><div class="eyebrow">Ridgeway Aluminum · Railings</div><b>Crew Job Board</b></div></div>';
+  var h='<div class="stick"><div class="top"><div class="brand"><div class="logo">'+LOGO+'</div><div><div class="eyebrow">Ridgeway Aluminum · Railings</div><b>Crew Job Board</b></div></div>';
   h+='<button class="btn ghost" data-a="refresh" aria-label="Refresh">'+(loading?'…':'↻')+'</button>';
   if(MANAGER){h+='<button class="btn '+(editing()?'org':'ghost')+'" data-a="toggleEdit">'+(editing()?'✓ Done editing':'✎ Edit')+'</button>';}
   h+='</div>';
-  h+='<div class="tabs">'+tab("day","Today / Day")+tab("week","Week")+tab("jobs","Jobsites")+(editing()?tab("crew","Crew"):"")+'</div>';
+  h+='<div class="tabs">'+tab("day","Day")+tab("week","Week")+tab("jobs","Jobsites")+(editing()?tab("crew","Crew"):"")+'</div></div>';
   if(loadErr==="setup")h+='<div class="editbar"><span>Not connected to the calendar yet — paste the Apps Script web app URL into API_URL.</span></div>';
   else if(loadErr==="offline")h+='<div class="editbar"><span>No signal — showing the last copy saved on this phone.</span></div>';
   else if(loadErr)h+='<div class="editbar"><span>Couldn\'t reach the board — showing the last copy. Tap ↻ to try again.</span></div>';
@@ -440,6 +482,9 @@ modalEl.addEventListener("click",function(e){if(e.target===modalEl)closeModal();
 document.addEventListener("input",function(e){if(e.target.id==="jq"){q=e.target.value;var p=e.target.selectionStart;render();var el=document.getElementById("jq");el.focus();try{el.setSelectionRange(p,p);}catch(x){}}});
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!modalEl.hidden)closeModal();if(e.key==="Enter"&&e.target.id==="pin-in"){var pb=document.querySelector('[data-a="checkPin"]');if(pb)pb.click();}if(e.key==="Enter"&&e.target.id==="newCrew"){var bb=document.querySelector('[data-a="addCrew"]');if(bb)bb.click();}});
 
+var tx=null,ty=null;
+document.addEventListener("touchstart",function(e){if(view!=="day"||!modalEl.hidden||e.touches.length!==1){tx=null;return;}tx=e.touches[0].clientX;ty=e.touches[0].clientY;},{passive:true});
+document.addEventListener("touchend",function(e){if(tx===null)return;var dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;tx=null;if(Math.abs(dx)>70&&Math.abs(dx)>Math.abs(dy)*1.8){go("day",addWorkdays(cur,dx<0?1:-1));}},{passive:true});
 readHash();render();load();
 })();
 </script>
