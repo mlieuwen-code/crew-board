@@ -18,6 +18,8 @@ const ADMIN_PIN = '5742';                      // manager PIN (tap the app logo 
 const CALENDAR_ID = 'm.lieuwen@gmail.com';     // the Ridgeway Schedule calendar (shared with matt@ridgewayaluminum.com)
 const CALENDAR_NAME = 'Ridgeway Schedule';     // used if the ID can't be opened
 const DATA_FILE_NAME = 'Crew Job Board - data.json';
+const NOTIFY_EMAIL = 'matt@ridgewayaluminum.com';  // time-off requests are emailed here
+const APP_URL = 'https://mlieuwen-code.github.io/crew-board/';
 const DAYS_BACK = 7;                           // calendar days to read before this week's Monday
 const DAYS_AHEAD = 42;                         // and how far ahead
 // ===================================
@@ -48,8 +50,13 @@ function doPost(e) {
       const st = readState_();
       const item = { id: Utilities.getUuid().slice(0, 8), name: name, from: from, to: to, note: String(r.note || '').slice(0, 300), status: 'pending', created: Date.now() };
       st.timeOff.push(item); writeState_(st);
-      return json_({ ok: true, item: item });
+      try { emailRequest_(item); } catch (err) { console.warn('email failed: ' + err); }
+      return json_({ ok: true });
     });
+    if (body.action === 'listOff') {
+      if (String(body.pin) !== String(ADMIN_PIN)) return json_({ ok: false, error: 'wrong pin' });
+      return json_({ ok: true, timeOff: readState_().timeOff });
+    }
     if (body.action === 'offStatus') {
       if (String(body.pin) !== String(ADMIN_PIN)) return json_({ ok: false, error: 'wrong pin' });
       return withLock_(() => {
@@ -144,6 +151,7 @@ function boardWithCalendar_() {
   } catch (err) {
     st.calError = String(err && err.message || err);
   }
+  st.timeOff = st.timeOff.filter(t => t.status === 'approved').map(t => ({ name: t.name, from: t.from, to: t.to, status: 'approved' }));
   return st;
 }
 
@@ -198,6 +206,17 @@ function addAwayEvent_(x) {
 function removeAwayEvent_(id) {
   const ev = calendar_().getEventById(id);
   if (ev) ev.deleteEvent();
+}
+function emailRequest_(x) {
+  const fmtD = k => Utilities.formatDate(ymdDate_(k), Session.getScriptTimeZone(), 'EEE MMM d');
+  const when = x.from === x.to ? fmtD(x.from) : fmtD(x.from) + ' – ' + fmtD(x.to);
+  MailApp.sendEmail({
+    to: NOTIFY_EMAIL,
+    subject: 'Time off request: ' + x.name + ' · ' + when,
+    htmlBody: '<p><b>' + x.name + '</b> has asked for time off.</p>' +
+      '<p><b>When:</b> ' + when + '<br><b>Reason:</b> ' + (x.note ? x.note.replace(/</g, '&lt;') : '—') + '</p>' +
+      '<p><a href="' + APP_URL + '#off">Open the Time Off tab</a> (tap the logo 5 times to unlock) to approve or decline.</p>'
+  });
 }
 function withLock_(fn) {
   const lock = LockService.getScriptLock(); lock.waitLock(20000);
