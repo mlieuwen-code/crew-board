@@ -149,7 +149,7 @@ a{color:var(--deep)}
 .st-cal{border-left-color:#616161}.st-cal .ochip{background:#616161}
 .o-btns{display:flex;gap:8px;flex-basis:100%}.o-btns .btn{flex:1}
 .tab{white-space:nowrap}
-@media(max-width:560px){.tab{font-size:14px;padding:0 8px;flex:1 0 auto}}
+@media(max-width:560px){.tabs{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:5px;overflow:visible}.tab{font-size:13.5px;padding:0 2px;min-height:48px;line-height:1.1;border-radius:13px;white-space:normal}}
 /* ---- sticky header so day/week switching is always in reach ---- */
 .stick{position:sticky;top:0;z-index:20;background:var(--bg);margin:0 -16px;padding:0 16px;box-shadow:0 6px 10px -10px rgba(0,0,0,.25)}
 /* ---- phone ---- */
@@ -193,6 +193,20 @@ a{color:var(--deep)}
   .shead h2{font-size:26px}
 }
 @media(hover:none){.btn,.tab,.round,.wcard,.pick{-webkit-tap-highlight-color:transparent}}
+/* safety forms */
+.ftiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+@media(max-width:560px){.ftiles{grid-template-columns:1fr 1fr;gap:10px}}
+.ftile{display:flex;flex-direction:column;align-items:flex-start;gap:10px;text-align:left;background:var(--card);border:0;border-radius:22px;box-shadow:0 2px 0 var(--line);padding:16px;min-height:150px;border-top:8px solid var(--fc)}
+.ftile .ic{width:56px;height:56px;border-radius:16px;background:var(--fc);display:flex;align-items:center;justify-content:center;font-size:30px;line-height:1}
+.ftile .ic svg{width:40px;height:40px}
+.ftile b{font-size:19px;font-weight:900;line-height:1.15}
+.ftile small{display:block;font-size:14px;color:var(--muted);font-weight:700;margin-top:2px}
+@media(max-width:560px){.ftile{padding:12px;min-height:0;border-radius:18px}.ftile .ic{width:46px;height:46px;font-size:24px;border-radius:13px}.ftile .ic svg{width:32px;height:32px}.ftile b{font-size:16px}.ftile small{font-size:13px}}
+#formview{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column}
+#formview .fbar{display:flex;align-items:center;gap:12px;padding:max(10px,env(safe-area-inset-top)) 14px 10px;background:var(--card);box-shadow:0 2px 0 var(--line)}
+#formview .fbar b{flex:1;font-size:20px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#formview iframe{flex:1;width:100%;border:0;background:var(--bg)}
+.fload{position:absolute;left:0;right:0;top:90px;text-align:center;color:var(--muted);font-weight:800;pointer-events:none}
 </style>
 </head><body>
 <div class="wrap" id="root"></div>
@@ -290,7 +304,7 @@ function readHash(){
   var h=(location.hash||"").replace("#","");var m;
   if((m=h.match(/^day-(\d{4}-\d\d-\d\d)$/))){view="day";cur=m[1];}
   else if((m=h.match(/^week-(\d{4}-\d\d-\d\d)$/))){view="week";cur=m[1];}
-  else if(h==="jobs")view="jobs";else if(h==="crew")view="crew";else if(h==="off")view="off";
+  else if(h==="jobs")view="jobs";else if(h==="crew")view="crew";else if(h==="off")view="off";else if(h==="forms")view="forms";
 }
 function go(v,k){view=v;if(k)cur=k;var h=v==="day"?"day-"+cur:v==="week"?"week-"+monday(cur):v;try{history.replaceState(null,"","#"+h);}catch(e){location.hash=h;}render();window.scrollTo(0,0);}
 window.addEventListener("hashchange",function(){readHash();render();});
@@ -301,12 +315,12 @@ function render(){
   h+='<button class="btn ghost" data-a="refresh" aria-label="Refresh">'+(loading?'…':'↻')+'</button>';
   if(pin){h+='<button class="btn '+(editing()?'org':'ghost')+'" data-a="toggleEdit">'+(editing()?'✓ Done':'✎ Edit')+'</button>';if(editing())h+='<button class="btn ghost" data-a="lock" aria-label="Lock">🔒</button>';}
   h+='</div>';
-  h+='<div class="tabs">'+tab("day","Day")+tab("week","Week")+tab("jobs","Jobsites")+tab("off","Time Off"+(editing()&&offCount()?' <span class="badge">'+offCount()+'</span>':''))+(editing()?tab("crew","Crew"):"")+'</div></div>';
+  h+='<div class="tabs">'+tab("day","Day")+tab("week","Week")+tab("jobs","Jobsites")+tab("off","Time Off"+(editing()&&offCount()?' <span class="badge">'+offCount()+'</span>':''))+tab("forms","Safety")+(editing()?tab("crew","Crew"):"")+'</div></div>';
   if(loadErr==="setup")h+='<div class="editbar"><span>Not connected to the calendar yet — paste the Apps Script web app URL into API_URL.</span></div>';
   else if(loadErr==="offline")h+='<div class="editbar"><span>No signal — showing the last copy saved on this phone.</span></div>';
   else if(loadErr)h+='<div class="editbar"><span>Couldn\'t reach the board — showing the last copy. Tap ↻ to try again.</span></div>';
   if(!loaded&&loading&&!state.jobs.length)h+='<div class="empty">Loading the schedule…</div>';
-  if(view==="day")h+=renderDay();else if(view==="week")h+=renderWeek();else if(view==="jobs")h+=renderJobs();else if(view==="off")h+=renderOff();else h+=renderCrew();
+  if(view==="day")h+=renderDay();else if(view==="week")h+=renderWeek();else if(view==="jobs")h+=renderJobs();else if(view==="off")h+=renderOff();else if(view==="forms")h+=renderForms();else h+=renderCrew();
   h+='<div class="legend">'+TYPES.map(function(t){return '<span><i style="background:'+t.c+'"></i>'+t.n+'</span>';}).join("")+'</div>';
   if(state.updatedAt)h+='<div class="ro">Last updated '+new Date(state.updatedAt).toLocaleString(undefined,{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})+'</div>';
   root.innerHTML=h;
@@ -542,11 +556,45 @@ function ensureDay(k){if(!state.days[k])state.days[k]={note:"",items:[]};return 
 function cleanDays(){Object.keys(state.days).forEach(function(k){var d=state.days[k];if(!d.items.length&&!d.note)delete state.days[k];});}
 function newItem(){return {id:uid(),jobId:"",type:"install",start:"",area:"",crew:[],lead:"",leaveOff:"",tasks:"",measure:"",bring:"",notes:""};}
 
+
+/* ---------- safety forms (Ridgeway Safety app) ---------- */
+var SAFETY_URL="https://script.google.com/macros/s/AKfycbwjMjDsWx20WXMnZ0SEbdFQnIt6074SNEle4AEnswIpAWPWZXJ5BrPKHGXvxzB01frStQ/exec";
+var FORMS=[
+ ["FLHA","Daily hazard assessment","","#0f4c81","&#128203;"],
+ ["Site Safety Meeting","Toolbox talk on site","meeting","#1a7f37","&#128101;"],
+ ["Shop Safety Meeting","Toolbox talk in the shop","shop","#2f855a","&#128295;"],
+ ["Lift Inspection","Pre-use lift check","https://forms.gle/wsH8GwJVFCxHVKmcA","#b45309","<svg viewBox='0 0 48 48' fill='none' stroke='#fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M4 36h22v-6H4z'/><circle cx='8' cy='41' r='3.5'/><circle cx='22' cy='41' r='3.5'/><path d='M12 30v-4h6v4'/><path d='M15 26l6-10'/><path d='M21 16l13-8'/><path d='M31 13h13v7H31z'/><path d='M34 13V8'/><circle cx='37.5' cy='6' r='2.5'/></svg>"],
+ ["Vehicle Check","Before you drive","vehicle","#2b6cb0","&#128666;"],
+ ["Forklift Check","Before you operate","forklift","#975a16","<svg viewBox='0 0 48 48' fill='none' stroke='#fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M5 35V22h15l6 7v6z'/><path d='M9 22v-9h9l3 9'/><path d='M31 7v29'/><path d='M31 36h13'/><path d='M26 29h5'/><circle cx='11' cy='36' r='4.5' fill='#975a16'/><circle cx='22' cy='37' r='3.5' fill='#975a16'/></svg>"],
+ ["Fall Protection","Check gear before use","fall","#c05621","<svg viewBox='0 0 48 48' fill='none' stroke='#fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M36 3h9'/><path d='M40.5 3v4'/><path d='M40.5 7c-2 0-3 1.5-3 3s1 3 3 3s3-1.5 3-3'/><path d='M38 12c-2 8-7 9-14 9'/><circle cx='17' cy='8' r='4'/><path d='M9 31V20a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v11'/><path d='M12 17l5 9l5-9'/><path d='M9 26h16'/><path d='M12 31v13'/><path d='M22 31v13'/><path d='M9 31h16'/></svg>"],
+ ["Shop Inspection","Monthly walk-through","inspection","#4a5568","&#128269;"],
+ ["Incident Report","Injury, near miss, damage","incident","#c62828","&#128680;"],
+ ["Safety Data Sheets","SDS for shop chemicals","sds","#6b46c1","&#129514;"],
+ ["Cut Sheet","Enter units and measurements","cutsheet","#334155","&#128207;"]
+];
+function renderForms(){
+  var h='<div class="nav"><h1>Safety &amp; Forms<small>Tap a form to fill it out</small></h1></div><div class="ftiles">';
+  FORMS.forEach(function(f,i){h+='<button class="ftile" style="--fc:'+f[3]+'" data-a="openForm" data-i="'+i+'"><span class="ic">'+f[4]+'</span><span><b>'+esc(f[0])+'</b><small>'+esc(f[1])+'</small></span></button>';});
+  return h+'</div>';
+}
+var formEl=null;
+function openForm(i){
+  var f=FORMS[i];if(!f)return;
+  if(/^https?:/.test(f[2])){window.open(f[2],"_blank","noopener");return;}
+  var url=SAFETY_URL+(f[2]?"?f="+f[2]:"");
+  if(!formEl){formEl=document.createElement("div");formEl.id="formview";document.body.appendChild(formEl);}
+  formEl.innerHTML='<div class="fbar"><button class="btn sm" data-a="closeForm">&larr; Forms</button><b>'+esc(f[0])+'</b><a class="btn sm ghost" href="'+url+'" target="_blank" rel="noopener" aria-label="Open in browser">&#8599;</a></div><div class="fload">Loading form…</div><iframe onload="var l=this.parentNode.querySelector(\'.fload\');if(l)l.remove()" src="'+url+'" title="'+esc(f[0])+'" allow="camera;geolocation"></iframe>';
+  formEl.hidden=false;document.documentElement.style.overflow="hidden";
+}
+function closeForm(){if(formEl){formEl.hidden=true;formEl.innerHTML="";}document.documentElement.style.overflow="";}
+
 /* ---------- events ---------- */
 document.addEventListener("click",function(e){
   var b=e.target.closest("[data-a]");if(!b)return;var a=b.getAttribute("data-a"),i=+b.getAttribute("data-i"),d;
   switch(a){
-  case "go":go(b.getAttribute("data-v"),view==="jobs"||view==="crew"||view==="off"?null:cur);break;
+  case "go":go(b.getAttribute("data-v"),view==="jobs"||view==="crew"||view==="off"||view==="forms"?null:cur);break;
+  case "openForm":openForm(i);break;
+  case "closeForm":closeForm();break;
   case "offSend":offSend(b);break;
   case "offSet":offSet(b.getAttribute("data-id"),b.getAttribute("data-s"),b);break;
   case "toggleEdit":if(editing()){editMode=false;}else if(!pin){askPin();break;}else{editMode=true;}try{localStorage.setItem("cjb-edit",editMode?"1":"0");}catch(x){}render();break;
@@ -610,7 +658,7 @@ document.addEventListener("click",function(e){
 });
 modalEl.addEventListener("click",function(e){if(e.target===modalEl)closeModal();});
 document.addEventListener("input",function(e){if(e.target.id==="jq"){q=e.target.value;var p=e.target.selectionStart;render();var el=document.getElementById("jq");el.focus();try{el.setSelectionRange(p,p);}catch(x){}}});
-document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!modalEl.hidden)closeModal();if(e.key==="Enter"&&e.target.id==="pin-in"){var pb=document.querySelector('[data-a="checkPin"]');if(pb)pb.click();}if(e.key==="Enter"&&e.target.id==="newCrew"){var bb=document.querySelector('[data-a="addCrew"]');if(bb)bb.click();}});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&formEl&&!formEl.hidden){closeForm();return;}if(e.key==="Escape"&&!modalEl.hidden)closeModal();if(e.key==="Enter"&&e.target.id==="pin-in"){var pb=document.querySelector('[data-a="checkPin"]');if(pb)pb.click();}if(e.key==="Enter"&&e.target.id==="newCrew"){var bb=document.querySelector('[data-a="addCrew"]');if(bb)bb.click();}});
 
 /* inline notes on site cards (manager): saves when you tap away, or after 2 s of no typing */
 var noteTimer=null;
