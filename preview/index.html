@@ -542,8 +542,9 @@ function grab(){
 var jobDraft=null,jobBack=false;
 var RAIL_TYPES=[["Glass","Glass"],["5/8\"","5/8\" Picket (Standard)"],["Relief","Glass Relief Channel"],["Glass Double","Glass Double"],["3x1 Glass","3x1 Glass"],["3x1 Double","3x1 Double"],["3/4\"","3/4\" Picket"],["1\"","1\" Picket"],["Wide","Wide Picket"],["Tight","Concentrated Picket"],["Flat Glass","Flat Glass"],["Flat Relief","Flat Glass Relief Channel"],["Flat Double","Flat Double"],["Flat 5/8\"","Flat 5/8\" Picket (Standard)"],["Flat 3/4\"","Flat 3/4\" Picket"],["Flat 1\"","Flat 1\" Picket"],["Flat Wide","Flat Wide Picket"],["Flat Tight","Flat Concentrated Picket"]];
 var COLOURS=[["Carbon Black","Black"],["WW White","White"],["Silver","Silver"],["Charcoal XP Grey","Charcoal XP Grey"],["ASA 70","ASA 70"],["Matte Black","Matte Black"],["Gun Metal","Gun Metal"]];
+var CHANNELS=[["Glass","Glass"],["1 1/4 H Double","1 1/4 H Double"],["1 U Relief","1 U Relief"],["5/8 Punch","5/8 Punch"],["3/4 Punch","3/4 Punch"],["1 Punch","1 Punch"],["Wide Punch","Wide Punch"],["Concentrated","Concentrated"],["2x1 Tube","2x1 Tube"]];
 function optLabel(list,v){for(var i=0;i<list.length;i++)if(list[i][0]===v)return list[i][1];return v;}
-function railLine(j){var a=[];if(j.railType)a.push(optLabel(RAIL_TYPES,j.railType));if(j.colour)a.push(optLabel(COLOURS,j.colour));return a.join(" · ");}
+function railLine(j){var a=[];if(j.railType)a.push(optLabel(RAIL_TYPES,j.railType));if(j.colour)a.push(optLabel(COLOURS,j.colour));if(j.chan)a.push("+ "+j.chan+(j.chanH?" at "+j.chanH+"\"":""));return a.join(" · ");}
 function optList(list,v){var known=!v||list.some(function(o){return o[0]===v;});return '<option value="">—</option>'+list.map(function(o){return '<option value="'+esc(o[0])+'"'+(o[0]===v?' selected':'')+'>'+esc(o[1])+'</option>';}).join("")+(known?'':'<option value="'+esc(v)+'" selected>'+esc(v)+'</option>');}
 function jobForm(j,back){
   jobBack=!!back;jobDraft=j?JSON.parse(JSON.stringify(j)):{id:uid(),name:"",address:"",contact:"",access:"",notes:""};
@@ -551,6 +552,7 @@ function jobForm(j,back){
   h+='<div><label>Name</label><input id="j-name" value="'+esc(jobDraft.name)+'" placeholder="Horn Street"></div>';
   h+='<div><label>Builder / GC</label><input id="j-builder" value="'+esc(jobDraft.builder||"")+'" placeholder="Whitetail"></div>';
   h+='<div class="row2"><div><label>Rail type <i>— fills in Rail Measure</i></label><select id="j-rail">'+optList(RAIL_TYPES,jobDraft.railType||"")+'</select></div><div><label>Colour</label><select id="j-colour">'+optList(COLOURS,jobDraft.colour||"")+'</select></div></div>';
+  h+='<div class="row2"><div><label>Extra channel <i>— optional</i></label><select id="j-chan">'+optList(CHANNELS,jobDraft.chan||"")+'</select></div><div><label>Block height (in)</label><input id="j-chanh" inputmode="decimal" value="'+esc(jobDraft.chanH||"")+'" placeholder="e.g. 3"></div></div>';
   h+='<div><label>Address</label><input id="j-addr" value="'+esc(jobDraft.address)+'" placeholder="33100 Horn St, Abbotsford, BC"></div>';
   h+='<div><label>Site contact <i>— name and phone</i></label><input id="j-contact" value="'+esc(jobDraft.contact)+'" placeholder="Super: Name · 604-555-0000"></div>';
   h+='<div><label>Access / parking <i>— gate code, lockbox, where to park, washroom</i></label><input id="j-access" value="'+esc(jobDraft.access)+'"></div>';
@@ -653,7 +655,7 @@ document.addEventListener("click",function(e){
   case "jobBack":itemForm();break;
   case "saveJob":
     jobDraft.name=document.getElementById("j-name").value.trim();if(!jobDraft.name){toast("Give it a name");return;}
-    jobDraft.address=document.getElementById("j-addr").value.trim();jobDraft.builder=document.getElementById("j-builder").value.trim();jobDraft.contact=document.getElementById("j-contact").value.trim();jobDraft.access=document.getElementById("j-access").value.trim();jobDraft.notes=document.getElementById("j-notes").value.trim();jobDraft.railType=document.getElementById("j-rail").value;jobDraft.colour=document.getElementById("j-colour").value;
+    jobDraft.address=document.getElementById("j-addr").value.trim();jobDraft.builder=document.getElementById("j-builder").value.trim();jobDraft.contact=document.getElementById("j-contact").value.trim();jobDraft.access=document.getElementById("j-access").value.trim();jobDraft.notes=document.getElementById("j-notes").value.trim();jobDraft.railType=document.getElementById("j-rail").value;jobDraft.colour=document.getElementById("j-colour").value;jobDraft.chan=document.getElementById("j-chan").value;jobDraft.chanH=document.getElementById("j-chanh").value.trim();
     var ex=job(jobDraft.id);if(ex){for(var k2 in jobDraft)ex[k2]=jobDraft[k2];}else state.jobs.push(jobDraft);
     if(jobBack){draft.jobId=jobDraft.id;itemForm();state.updatedAt=Date.now();}else{closeModal();save();}break;
   case "delJob":if(b.getAttribute("data-armed")){var did=jobDraft.id;state.jobs=state.jobs.filter(function(x){return x.id!==did;});closeModal();save("Jobsite deleted");}else{b.setAttribute("data-armed","1");b.textContent="Tap again to delete";}break;
