@@ -261,6 +261,9 @@ function longDate(k){var d=parse(k);return DN[d.getDay()]+", "+MN[d.getMonth()]+
 function shortDate(k){var d=parse(k);return MN[d.getMonth()]+" "+d.getDate();}
 function typeOf(k){for(var i=0;i<TYPES.length;i++)if(TYPES[i].k===k)return TYPES[i];return TYPES[TYPES.length-1];}
 function job(id){for(var i=0;i<state.jobs.length;i++)if(state.jobs[i].id===id)return state.jobs[i];return null;}
+/* calendar events whose title only has a jobsite's nickname (e.g. "Vara") still get that jobsite */
+function akaJob(title){var t=" "+String(title||"").toLowerCase().replace(/[^a-z0-9]+/g," ")+" ",best=null,bn=0;(state.jobs||[]).forEach(function(j){String(j.aka||"").split(",").forEach(function(x){var n=x.trim().toLowerCase().replace(/[^a-z0-9]+/g," ").trim();if(n&&t.indexOf(" "+n+" ")>=0&&n.length>bn){best=j;bn=n.length;}});});return best;}
+function itemJob(it){return job(it.jobId)||(!it.jobId&&it.calTitle?akaJob(it.calTitle):null);}
 function crewName(id){for(var i=0;i<state.crew.length;i++)if(state.crew[i].id===id)return state.crew[i].name;return "?";}
 function day(k){return state.days[k]||{note:"",items:[]};}
 function lines(s){return String(s||"").split(/\n/).map(function(x){return x.replace(/^\s*[-•*]\s*/,"").trim();}).filter(Boolean);}
@@ -362,7 +365,7 @@ function foldAllState(){var d=day(cur);return d.items.length&&d.items.every(func
 function foldBtn(){var b=document.querySelector('[data-a="foldAll"]');if(b)b.textContent=foldAllState()?"Expand all":"Collapse all";}
 function sec(cls,title,arr){if(!arr.length)return "";return '<div class="sec '+cls+'"><h3>'+title+'</h3><ul>'+arr.map(function(x){return '<li>'+esc(x)+'</li>';}).join("")+'</ul></div>';}
 function siteCard(it,i,n){
-  var j=job(it.jobId)||{name:it.jobName||"Site",address:""},t=typeOf(it.type);
+  var j=itemJob(it)||{name:it.jobName||"Site",address:""},t=typeOf(it.type);
   var folded=!!FOLD[foldKey(it,i)];
   var fs=[];if(it.crew&&it.crew.length)fs.push(it.crew.map(crewName).join(", "));if(j.address)fs.push(j.address.split(",")[0]);
   var h='<div class="site'+(folded?' folded':'')+'" style="--tc:'+t.c+'"><div class="shead" data-a="fold" data-i="'+i+'"><div class="num">'+(i+1)+'</div><div class="t"><h2>'+esc(j.name)+(j.builder?' <span class="bld">'+esc(j.builder)+'</span>':'')+'</h2><div class="meta"><span class="type">'+t.n+'</span>'+(it.start?'Start '+esc(it.start):'')+(it.area?' · '+esc(it.area):'')+'</div>'+(it.calTitle&&it.calTitle.toLowerCase()!==String(j.name).toLowerCase()?'<div class="caltitle">📅 '+esc(it.calTitle)+'</div>':'')+(fs.length?'<div class="fsum">'+esc(fs.join(" · "))+'</div>':'')+'</div><button class="fold" aria-label="Collapse or expand this site" aria-expanded="'+(!folded)+'"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>';
@@ -396,7 +399,7 @@ function renderWeek(){
     if(d.note)h+='<div class="wempty" style="color:var(--deep)">'+esc(d.note.split("\n")[0])+'</div>';
     if(!d.items.length)h+='<div class="wempty">—</div>';
     d.items.forEach(function(it){
-      var j=job(it.jobId)||{name:it.jobName||"Site"},t=typeOf(it.type),lo=lines(it.leaveOff).length,ms=lines(it.measure).length;
+      var j=itemJob(it)||{name:it.jobName||"Site"},t=typeOf(it.type),lo=lines(it.leaveOff).length,ms=lines(it.measure).length;
       h+='<button class="wcard" style="--tc:'+t.c+'" data-a="openDay" data-k="'+k+'"><b>'+esc(j.name)+'</b>'+(it.calTitle&&it.calTitle.toLowerCase()!==String(j.name).toLowerCase()?'<span style="color:var(--ink)">'+esc(it.calTitle)+'</span>':'')+(j.builder?'<span>'+esc(j.builder)+'</span>':'')+'<span>'+t.n+(it.start?' · '+esc(it.start):'')+'</span>'+(it.crew&&it.crew.length?'<span>'+it.crew.map(crewName).map(esc).join(", ")+'</span>':'')+(lo?'<span class="lo">⛔ '+lo+' left off</span>':'')+(ms?'<span style="color:#B3261E">📏 '+ms+' to measure</span>':'')+'</button>';
     });
     if(editing())h+='<button class="btn sm ghost" data-a="addItemOn" data-k="'+k+'">+ Add</button>';
@@ -431,7 +434,7 @@ function dayText(k){
   if(d.note)out.push(d.note);
   if(!d.items.length)out.push("Nothing scheduled.");
   d.items.forEach(function(it,i){
-    var j=job(it.jobId)||{name:it.jobName||"Site"},t=typeOf(it.type);
+    var j=itemJob(it)||{name:it.jobName||"Site"},t=typeOf(it.type);
     out.push("");out.push((i+1)+". "+j.name+(j.builder?" ("+j.builder+")":"")+" — "+t.n+(it.start?" ("+it.start+")":""));
     if(it.crew&&it.crew.length)out.push("Crew: "+it.crew.map(function(c){return crewName(c)+(c===it.lead?" (lead)":"");}).join(", "));
     if(j.address)out.push("Address: "+j.address+"\n"+mapUrl(j.address));
