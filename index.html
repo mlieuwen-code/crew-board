@@ -101,6 +101,11 @@ a{color:var(--deep)}
 .wday.today{outline:4px solid var(--orange)}
 .whead{border:0;background:none;text-align:left;padding:4px 6px;font-size:20px;font-weight:900;display:flex;justify-content:space-between;align-items:baseline}
 .whead small{color:var(--muted);font-weight:800;font-size:15px}
+.wh{display:flex;align-items:center;gap:6px}.wh .whead{flex:1;min-width:0}
+.wfold{flex:none;display:flex;align-items:center;gap:6px;border:0;border-radius:12px;background:var(--card);color:var(--ink);padding:0 10px;height:40px;font-weight:800;font-size:14px}
+.wfold svg{display:block;transition:transform .15s}.wfolded .wfold svg{transform:rotate(-90deg)}
+.wfold .wcount{display:none;color:var(--muted)}.wfolded .wfold .wcount{display:inline}
+.wday.wfolded{min-height:0}.wday.wfolded>:not(.wh){display:none}
 .wcard{border:0;text-align:left;background:var(--card);border-radius:14px;padding:10px 12px;border-left:8px solid var(--tc,#888);box-shadow:0 2px 0 var(--line)}
 .wcard b{display:block;font-size:19px;font-weight:900}
 .wcard span{display:block;font-size:14px;color:var(--muted);font-weight:800}
@@ -309,7 +314,7 @@ function askPin(){
 }
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!typingNote())load(true);});
 setInterval(function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!editing())load(true);},5*60*1000);
-var APP_VERSION="2026.11.13-2";
+var APP_VERSION="2026.11.13-3";
 /* Check for updates: get the newest app from GitHub; reload if it changed, otherwise refresh the schedule */
 function checkUpdates(btn){
   if(btn){btn.disabled=true;btn.textContent="Checking…";}
@@ -377,6 +382,8 @@ function foldKey(it,i){return cur+"|"+(it.calId||it.id||((it.jobId||it.jobName||
 function foldSave(){try{var cut=addDays(todayKey(),-14),k;for(k in FOLD)if(k.slice(0,10)<cut)delete FOLD[k];localStorage.setItem("cjb-fold",JSON.stringify(FOLD));}catch(e){}}
 function foldSet(i,v){var d=day(cur),it=d.items[i];if(!it)return;var k=foldKey(it,i);if(v)FOLD[k]=1;else delete FOLD[k];foldSave();var el=document.querySelectorAll(".sites .site")[i];if(el)el.classList.toggle("folded",!!v);foldBtn();}
 function foldAllState(){var d=day(cur);return d.items.length&&d.items.every(function(it,i){return FOLD[foldKey(it,i)];});}
+function wFoldAllState(){var m=monday(cur);for(var i=0;i<5;i++)if(!FOLD[addDays(m,i)+"|W"])return false;return true;}
+function wFoldSet(k,v){if(v)FOLD[k+"|W"]=1;else delete FOLD[k+"|W"];foldSave();var b=document.querySelector('.wfold[data-k="'+k+'"]');if(b){b.closest(".wday").classList.toggle("wfolded",!!v);b.setAttribute("aria-expanded",String(!v));}var a=document.querySelector('[data-a="wfoldAll"]');if(a)a.textContent=wFoldAllState()?"Expand all":"Collapse all";}
 function foldBtn(){var b=document.querySelector('[data-a="foldAll"]');if(b)b.textContent=foldAllState()?"Expand all":"Collapse all";}
 function sec(cls,title,arr){if(!arr.length)return "";return '<div class="sec '+cls+'"><h3>'+title+'</h3><ul>'+arr.map(function(x){return '<li>'+esc(x)+'</li>';}).join("")+'</ul></div>';}
 function siteCard(it,i,n){
@@ -404,13 +411,15 @@ function renderWeek(){
   var m=monday(cur),wk=state.weeks[m]||"",h='';
   h+='<div class="nav"><button class="round" data-a="prevWeek" aria-label="Previous week"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><h1>Week of '+shortDate(m)+'<small>'+shortDate(m)+' – '+shortDate(addDays(m,4))+'</small></h1><button class="round" data-a="nextWeek" aria-label="Next week"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>';
   if(monday(todayKey())!==m)h+='<button class="btn sm" data-a="toThisWeek">This week</button>';
+  h+='<button class="btn sm" data-a="wfoldAll">'+(wFoldAllState()?'Expand all':'Collapse all')+'</button>';
   h+=(editing()?'<button class="btn sm" data-a="copyWeek">Copy as text</button>':'')+'</div>';
   if(editing())h+='<div class="editbar"><span>Editing week of '+shortDate(m)+'</span><button class="btn sm" data-a="editWeekNote">'+(wk?'Edit':'Add')+' week note</button><button class="btn sm" data-a="copyWeekNext">Copy this week to next week</button></div>';
   if(wk)h+='<div class="daynote weeknote">'+esc(wk)+'</div>';
   h+='<div class="week">';
   for(var i=0;i<5;i++){
     var k=addDays(m,i),d=day(k);
-    h+='<div class="wday'+(k===realToday()?' today':'')+'"><button class="whead" data-a="openDay" data-k="'+k+'">'+DN[parse(k).getDay()].slice(0,3)+' <small>'+shortDate(k)+' ›</small></button>'+(awayOn(k).length?'<div class="wempty wav">🏖 '+awayOn(k).map(esc).join(", ")+'</div>':'');
+    var wf=!!FOLD[k+"|W"],nsites=d.items.length;
+    h+='<div class="wday'+(k===realToday()?' today':'')+(wf?' wfolded':'')+'"><div class="wh"><button class="whead" data-a="openDay" data-k="'+k+'">'+DN[parse(k).getDay()].slice(0,3)+' <small>'+shortDate(k)+'</small></button><button class="wfold" data-a="wfold" data-k="'+k+'" aria-label="Collapse or expand '+DN[parse(k).getDay()]+'" aria-expanded="'+(!wf)+'"><span class="wcount">'+(nsites?nsites+' site'+(nsites===1?'':'s'):'')+'</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>'+(awayOn(k).length?'<div class="wempty wav">🏖 '+awayOn(k).map(esc).join(", ")+'</div>':'');
     if(d.note)h+='<div class="wempty" style="color:var(--deep)">'+esc(d.note.split("\n")[0])+'</div>';
     if(!d.items.length)h+='<div class="wempty">—</div>';
     d.items.forEach(function(it){
@@ -663,6 +672,8 @@ document.addEventListener("click",function(e){
   case "nextDay":go("day",addWorkdays(cur,1));break;
   case "toToday":go("day",todayKey());break;
   case "checkUpd":checkUpdates(b);break;
+  case "wfold":var wk2=b.getAttribute("data-k");wFoldSet(wk2,!FOLD[wk2+"|W"]);break;
+  case "wfoldAll":var allw=!wFoldAllState(),mw=monday(cur);for(var wi=0;wi<5;wi++)wFoldSet(addDays(mw,wi),allw);break;
   case "fold":if(e.target.closest("a"))return;var se=b.closest(".site");foldSet(i,!se.classList.contains("folded"));var fb=se.querySelector(".fold");if(fb)fb.setAttribute("aria-expanded",String(!se.classList.contains("folded")));break;
   case "foldAll":var all=!foldAllState();day(cur).items.forEach(function(it,k){foldSet(k,all);});break;
   case "prevWeek":go("week",addDays(monday(cur),-7));break;
