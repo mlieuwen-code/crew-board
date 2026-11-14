@@ -569,6 +569,7 @@ function jobForm(j,back){
   h+='<div><label>Builder / GC</label><input id="j-builder" value="'+esc(jobDraft.builder||"")+'" placeholder="Whitetail"></div>';
   h+='<div class="row2"><div><label>Rail type <i>— fills in Rail Measure</i></label><select id="j-rail">'+optList(RAIL_TYPES,jobDraft.railType||"")+'</select></div><div><label>Colour</label><select id="j-colour">'+optList(COLOURS,jobDraft.colour||"")+'</select></div></div>';
   h+='<div class="row2"><div><label>Extra channel <i>— optional</i></label><select id="j-chan">'+optList(CHANNELS,jobDraft.chan||"")+'</select></div><div><label>Block height (in)</label><input id="j-chanh" inputmode="decimal" value="'+esc(jobDraft.chanH||"")+'" placeholder="e.g. 3"></div></div>';
+  h+='<div><label>Calendar nicknames <i>— other names this job goes by in calendar events, comma separated</i></label><input id="j-aka" value="'+esc(jobDraft.aka||"")+'" placeholder="e.g. Vara"></div>';
   h+='<div><label>Address</label><input id="j-addr" value="'+esc(jobDraft.address)+'" placeholder="33100 Horn St, Abbotsford, BC"></div>';
   h+='<div><label>Site contact <i>— name and phone</i></label><input id="j-contact" value="'+esc(jobDraft.contact)+'" placeholder="Super: Name · 604-555-0000"></div>';
   h+='<div><label>Access / parking <i>— gate code, lockbox, where to park, washroom</i></label><input id="j-access" value="'+esc(jobDraft.access)+'"></div>';
@@ -673,7 +674,7 @@ document.addEventListener("click",function(e){
   case "jobBack":itemForm();break;
   case "saveJob":
     jobDraft.name=document.getElementById("j-name").value.trim();if(!jobDraft.name){toast("Give it a name");return;}
-    jobDraft.address=document.getElementById("j-addr").value.trim();jobDraft.builder=document.getElementById("j-builder").value.trim();jobDraft.contact=document.getElementById("j-contact").value.trim();jobDraft.access=document.getElementById("j-access").value.trim();jobDraft.notes=document.getElementById("j-notes").value.trim();jobDraft.railType=document.getElementById("j-rail").value;jobDraft.colour=document.getElementById("j-colour").value;jobDraft.chan=document.getElementById("j-chan").value;jobDraft.chanH=document.getElementById("j-chanh").value.trim();
+    jobDraft.address=document.getElementById("j-addr").value.trim();jobDraft.builder=document.getElementById("j-builder").value.trim();jobDraft.contact=document.getElementById("j-contact").value.trim();jobDraft.access=document.getElementById("j-access").value.trim();jobDraft.notes=document.getElementById("j-notes").value.trim();jobDraft.railType=document.getElementById("j-rail").value;jobDraft.colour=document.getElementById("j-colour").value;jobDraft.chan=document.getElementById("j-chan").value;jobDraft.aka=document.getElementById("j-aka").value.trim();jobDraft.chanH=document.getElementById("j-chanh").value.trim();
     var ex=job(jobDraft.id);if(ex){for(var k2 in jobDraft)ex[k2]=jobDraft[k2];}else state.jobs.push(jobDraft);
     if(jobBack){draft.jobId=jobDraft.id;itemForm();state.updatedAt=Date.now();}else{closeModal();save();}break;
   case "delJob":if(b.getAttribute("data-armed")){var did=jobDraft.id;state.jobs=state.jobs.filter(function(x){return x.id!==did;});closeModal();save("Jobsite deleted");}else{b.setAttribute("data-armed","1");b.textContent="Tap again to delete";}break;

@@ -159,7 +159,11 @@ function boardWithCalendar_() {
 function wordIn_(t, w) { return new RegExp('(^|[^a-z0-9])' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^a-z0-9]|$)').test(t); }
 function matchJob_(st, title) {
   const t = title.toLowerCase(); let best = null;
-  st.jobs.forEach(j => { const n = (j.name || '').toLowerCase(); if (n && wordIn_(t, n) && (!best || n.length > best.name.length)) best = j; });
+  st.jobs.forEach(j => {
+    // the jobsite name, plus any other names it goes by on the calendar ("Vara" for Vara Apartments)
+    [j.name].concat(String(j.aka || '').split(',')).forEach(x => { const n = String(x || '').trim().toLowerCase(); if (n && wordIn_(t, n) && (!best || n.length > best.n.length)) best = { j: j, n: n }; });
+  });
+  if (best) best = best.j;
   if (best) return best;
   const hits = st.jobs.filter(j => { const b = (j.builder || '').toLowerCase(); return b && wordIn_(t, b); });
   return hits.length === 1 ? hits[0] : null;
