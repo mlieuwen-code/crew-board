@@ -43,7 +43,7 @@ a{color:var(--deep)}
 .nav{display:flex;align-items:center;gap:10px;margin:14px 0 16px;flex-wrap:wrap}
 .nav h1{margin:0;font-size:clamp(26px,4vw,36px);font-weight:900;line-height:1.1;flex:1;min-width:220px}
 .nav h1 small{display:block;font-size:17px;color:var(--muted);font-weight:800}
-.round{width:52px;height:52px;border-radius:26px;border:0;background:var(--chip2);font-size:22px;font-weight:900}
+.round{width:52px;height:52px;border-radius:26px;border:0;background:var(--chip2);font-size:22px;font-weight:900;color:var(--ink);display:inline-flex;align-items:center;justify-content:center;padding:0}.round svg{display:block}
 .editbar{background:var(--amberbg);color:var(--amberink);border-radius:16px;padding:10px 14px;font-weight:800;display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
 .editbar span{flex:1;min-width:200px}
 .daynote{background:var(--tint2);color:var(--deep);border-radius:18px;padding:14px 18px;font-weight:800;margin-bottom:14px;white-space:pre-wrap;border-left:8px solid var(--accent)}
@@ -342,7 +342,7 @@ function tab(v,n){return '<button class="tab'+(view===v?' on':'')+'" data-a="go"
 
 function renderDay(){
   var d=day(cur),h='';
-  h+='<div class="nav"><button class="round" data-a="prevDay" aria-label="Previous day">‹</button><h1>'+(cur===realToday()?'Today':longDate(cur).split(",")[0])+'<small>'+longDate(cur)+' · '+d.items.length+' site'+(d.items.length===1?'':'s')+'</small></h1><button class="round" data-a="nextDay" aria-label="Next day">›</button>';
+  h+='<div class="nav"><button class="round" data-a="prevDay" aria-label="Previous day"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><h1>'+(cur===realToday()?'Today':longDate(cur).split(",")[0])+'<small>'+longDate(cur)+' · '+d.items.length+' site'+(d.items.length===1?'':'s')+'</small></h1><button class="round" data-a="nextDay" aria-label="Next day"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>';
   if(cur!==todayKey())h+='<button class="btn sm" data-a="toToday">Today</button>';
   if(d.items.length>1)h+='<button class="btn sm" data-a="foldAll">'+(foldAllState()?'Expand all':'Collapse all')+'</button>';
   h+=(editing()?'<button class="btn sm" data-a="copyDay">Copy as text</button>':'')+'</div>';
@@ -387,7 +387,7 @@ function siteCard(it,i,n){
 
 function renderWeek(){
   var m=monday(cur),wk=state.weeks[m]||"",h='';
-  h+='<div class="nav"><button class="round" data-a="prevWeek" aria-label="Previous week">‹</button><h1>Week of '+shortDate(m)+'<small>'+shortDate(m)+' – '+shortDate(addDays(m,4))+'</small></h1><button class="round" data-a="nextWeek" aria-label="Next week">›</button>';
+  h+='<div class="nav"><button class="round" data-a="prevWeek" aria-label="Previous week"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><h1>Week of '+shortDate(m)+'<small>'+shortDate(m)+' – '+shortDate(addDays(m,4))+'</small></h1><button class="round" data-a="nextWeek" aria-label="Next week"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>';
   if(monday(todayKey())!==m)h+='<button class="btn sm" data-a="toThisWeek">This week</button>';
   h+=(editing()?'<button class="btn sm" data-a="copyWeek">Copy as text</button>':'')+'</div>';
   if(editing())h+='<div class="editbar"><span>Editing week of '+shortDate(m)+'</span><button class="btn sm" data-a="editWeekNote">'+(wk?'Edit':'Add')+' week note</button><button class="btn sm" data-a="copyWeekNext">Copy this week to next week</button></div>';
