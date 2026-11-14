@@ -27,3 +27,6 @@ Everything typed on a card (crew, leave-offs, to-dos, measures, notes) is kept i
 6. Put that URL in `API_URL` in `index.html` (Claude can do this).
 
 After changing `Code.gs` later: Deploy → Manage deployments → ✎ → Version: **New version** → Deploy (the URL stays the same).
+
+## Versions
+Bump `APP_VERSION` in index.html on every change so **Check for updates** (bottom of the app) sees it.

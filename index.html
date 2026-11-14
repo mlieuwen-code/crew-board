@@ -217,6 +217,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
 #formview .fbar b{flex:1;font-size:20px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #formview iframe{flex:1;width:100%;border:0;background:var(--bg)}
 .fload{position:absolute;left:0;right:0;top:90px;text-align:center;color:var(--muted);font-weight:800;pointer-events:none}
+.updrow{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:6px 0 24px;color:var(--muted);font-size:13px;font-weight:700}
 </style>
 </head><body>
 <div class="wrap" id="root"></div>
@@ -308,6 +309,19 @@ function askPin(){
 }
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!typingNote())load(true);});
 setInterval(function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!editing())load(true);},5*60*1000);
+var APP_VERSION="2026.11.13-1";
+/* Check for updates: get the newest app from GitHub; reload if it changed, otherwise refresh the schedule */
+function checkUpdates(btn){
+  if(btn){btn.disabled=true;btn.textContent="Checking…";}
+  var done=function(msg){if(btn){btn.disabled=false;btn.textContent="Check for updates";}if(msg)toast(msg);};
+  if(navigator.onLine===false){done("No signal");return;}
+  var swu=("serviceWorker" in navigator)?navigator.serviceWorker.getRegistration().then(function(r){return r&&r.update();}).catch(function(){}):Promise.resolve();
+  swu.then(function(){return fetch("index.html?u="+Date.now(),{cache:"no-store"});}).then(function(r){return r.text();}).then(function(t){
+    var m=t.match(/var APP_VERSION="([^"]+)"/),v=m?m[1]:APP_VERSION;
+    if(v!==APP_VERSION){toast("Updating…");setTimeout(function(){location.reload();},700);return;}
+    load();done("Up to date ✓");
+  }).catch(function(){done("Couldn't check, try again");});
+}
 if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});}
 var tt=null;
 function toast(m){var t=document.getElementById("toast");t.textContent=m;t.hidden=false;t.classList.remove("out");clearTimeout(tt);tt=setTimeout(function(){t.classList.add("out");},m.length>40?4500:1800);}
@@ -336,6 +350,7 @@ function render(){
   if(view==="day")h+=renderDay();else if(view==="week")h+=renderWeek();else if(view==="jobs")h+=renderJobs();else if(view==="off")h+=renderOff();else if(view==="forms")h+=renderForms();else h+=renderCrew();
   h+='<div class="legend">'+TYPES.map(function(t){return '<span><i style="background:'+t.c+'"></i>'+t.n+'</span>';}).join("")+'</div>';
   if(state.updatedAt)h+='<div class="ro">Last updated '+new Date(state.updatedAt).toLocaleString(undefined,{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})+'</div>';
+  h+='<div class="updrow"><button class="btn sm" data-a="checkUpd">Check for updates</button><span>App version '+APP_VERSION+'</span></div>';
   root.innerHTML=h;
 }
 function tab(v,n){return '<button class="tab'+(view===v?' on':'')+'" data-a="go" data-v="'+v+'">'+n+'</button>';}
@@ -647,6 +662,7 @@ document.addEventListener("click",function(e){
   case "prevDay":go("day",addWorkdays(cur,-1));break;
   case "nextDay":go("day",addWorkdays(cur,1));break;
   case "toToday":go("day",todayKey());break;
+  case "checkUpd":checkUpdates(b);break;
   case "fold":if(e.target.closest("a"))return;var se=b.closest(".site");foldSet(i,!se.classList.contains("folded"));var fb=se.querySelector(".fold");if(fb)fb.setAttribute("aria-expanded",String(!se.classList.contains("folded")));break;
   case "foldAll":var all=!foldAllState();day(cur).items.forEach(function(it,k){foldSet(k,all);});break;
   case "prevWeek":go("week",addDays(monday(cur),-7));break;
