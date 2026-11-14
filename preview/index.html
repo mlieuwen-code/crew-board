@@ -341,7 +341,7 @@ function renderDay(){
   h+='<div class="nav"><button class="round" data-a="prevDay" aria-label="Previous day">‹</button><h1>'+(cur===realToday()?'Today':longDate(cur).split(",")[0])+'<small>'+longDate(cur)+' · '+d.items.length+' site'+(d.items.length===1?'':'s')+'</small></h1><button class="round" data-a="nextDay" aria-label="Next day">›</button>';
   if(cur!==todayKey())h+='<button class="btn sm" data-a="toToday">Today</button>';
   if(d.items.length>1)h+='<button class="btn sm" data-a="foldAll">'+(foldAllState()?'Expand all':'Collapse all')+'</button>';
-  h+='<button class="btn sm" data-a="copyDay">Copy as text</button></div>';
+  h+=(editing()?'<button class="btn sm" data-a="copyDay">Copy as text</button>':'')+'</div>';
   if(editing()){
     h+='<div class="editbar"><span>Editing '+longDate(cur)+'</span><button class="btn sm pri" data-a="addItem">+ Add site</button><button class="btn sm" data-a="editDayNote">'+(d.note?'Edit':'Add')+' day note</button>'+(d.items.length?'<button class="btn sm" data-a="copyDayTo">Copy whole day to…</button>':'')+'</div>';
   }
@@ -385,7 +385,7 @@ function renderWeek(){
   var m=monday(cur),wk=state.weeks[m]||"",h='';
   h+='<div class="nav"><button class="round" data-a="prevWeek" aria-label="Previous week">‹</button><h1>Week of '+shortDate(m)+'<small>'+shortDate(m)+' – '+shortDate(addDays(m,4))+'</small></h1><button class="round" data-a="nextWeek" aria-label="Next week">›</button>';
   if(monday(todayKey())!==m)h+='<button class="btn sm" data-a="toThisWeek">This week</button>';
-  h+='<button class="btn sm" data-a="copyWeek">Copy as text</button></div>';
+  h+=(editing()?'<button class="btn sm" data-a="copyWeek">Copy as text</button>':'')+'</div>';
   if(editing())h+='<div class="editbar"><span>Editing week of '+shortDate(m)+'</span><button class="btn sm" data-a="editWeekNote">'+(wk?'Edit':'Add')+' week note</button><button class="btn sm" data-a="copyWeekNext">Copy this week to next week</button></div>';
   if(wk)h+='<div class="daynote weeknote">'+esc(wk)+'</div>';
   h+='<div class="week">';
