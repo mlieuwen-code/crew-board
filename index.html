@@ -223,6 +223,16 @@ input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
 #formview iframe{flex:1;width:100%;border:0;background:var(--bg)}
 .fload{position:absolute;left:0;right:0;top:90px;text-align:center;color:var(--muted);font-weight:800;pointer-events:none}
 .updrow{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:6px 0 24px;color:var(--muted);font-size:13px;font-weight:700}
+.rlist{display:flex;flex-direction:column;gap:10px}
+.rrow{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:18px;box-shadow:0 2px 0 var(--line);padding:10px 12px;border-left:8px solid var(--tc)}
+.rrow .num{flex:none}.rrow .rt{flex:1;min-width:0}.rrow .rt b{display:block;font-size:19px;font-weight:900;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rrow .rt span{display:block;font-size:14px;font-weight:800;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rbtn{flex:none;width:52px;height:52px;border-radius:14px;border:0;background:var(--chip2);color:var(--ink);display:flex;align-items:center;justify-content:center;padding:0}
+.rbtn:disabled{opacity:.3}
+[data-a="noteNext"]{max-width:100%;white-space:normal;text-align:left;line-height:1.2}
+@media(max-width:430px){.top .dtx{display:none}.top:has([data-a="lock"]) [data-a="toggleEdit"],.top [data-a="lock"]{width:52px;min-width:0;padding:0;flex:none}.top:has([data-a="lock"]) [data-a="refresh"]{display:none}}
+@media(max-width:560px){.top [data-a="toggleEdit"],.top [data-a="lock"]{padding:0 12px;font-size:16px}.top [data-a="lock"]{min-width:0}}
+@media(max-width:560px){.tabs .tab:nth-child(6):last-child,.tabs .tab:nth-child(6)~.tab{font-size:12px}.tabs:has(.tab:nth-child(6)) .tab{font-size:12px}}
 </style>
 </head><body>
 <div class="wrap" id="root"></div>
@@ -314,7 +324,7 @@ function askPin(){
 }
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!typingNote())load(true);});
 setInterval(function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!editing())load(true);},5*60*1000);
-var APP_VERSION="2026.11.13-4";
+var APP_VERSION="2026.11.14-1";
 /* Check for updates: get the newest app from GitHub; reload if it changed, otherwise refresh the schedule */
 function checkUpdates(btn){
   if(btn){btn.disabled=true;btn.textContent="Checking…";}
@@ -345,7 +355,7 @@ window.addEventListener("hashchange",function(){readHash();render();});
 function render(){
   var h='<div class="stick"><div class="top"><div class="brand"><div class="logo" id="logo">'+LOGO+'</div><div><div class="eyebrow">Ridgeway Aluminum · Railings</div><b>Crew Job Board</b></div></div>';
   h+='<button class="btn ghost" data-a="refresh" aria-label="Refresh">'+(loading?'…':'↻')+'</button>';
-  if(pin){h+='<button class="btn '+(editing()?'org':'ghost')+'" data-a="toggleEdit">'+(editing()?'✓ Done':'✎ Edit')+'</button>';if(editing())h+='<button class="btn ghost" data-a="lock" aria-label="Lock">🔒</button>';}
+  if(pin){h+='<button class="btn '+(editing()?'org':'ghost')+'" data-a="toggleEdit">'+(editing()?'✓<span class="dtx"> Done</span>':'✎ Edit')+'</button>';if(editing())h+='<button class="btn ghost" data-a="lock" aria-label="Lock">🔒</button>';}
   h+='</div>';
   h+='<div class="tabs">'+tab("day","Day")+tab("week","Week")+tab("jobs","Jobsites")+tab("off","Time Off"+(editing()&&offCount()?' <span class="badge">'+offCount()+'</span>':''))+tab("forms","Safety")+(editing()?tab("crew","Crew"):"")+'</div></div>';
   if(loadErr==="setup")h+='<div class="editbar"><span>Not connected to the calendar yet — paste the Apps Script web app URL into API_URL.</span></div>';
@@ -364,7 +374,8 @@ function renderDay(){
   var d=day(cur),h='';
   h+='<div class="nav"><button class="round" data-a="prevDay" aria-label="Previous day"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><h1>'+(cur===realToday()?'Today':longDate(cur).split(",")[0])+'<small>'+longDate(cur)+' · '+d.items.length+' job'+(d.items.length===1?'':'s')+'</small></h1><button class="round" data-a="nextDay" aria-label="Next day"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>';
   if(cur!==todayKey())h+='<button class="btn sm" data-a="toToday">Today</button>';
-  if(d.items.length>1)h+='<button class="btn sm" data-a="foldAll">'+(foldAllState()?'Expand all':'Collapse all')+'</button>';
+  if(editing()&&d.items.length>1)h+='<button class="btn sm'+(reorder?' pri':'')+'" data-a="reorder">'+(reorder?'✓ Done reordering':'⇅ Reorder')+'</button>';
+  if(d.items.length>1&&!reorder)h+='<button class="btn sm" data-a="foldAll">'+(foldAllState()?'Expand all':'Collapse all')+'</button>';
   h+=(editing()?'<button class="btn sm" data-a="copyDay">Copy as text</button>':'')+'</div>';
   if(editing()){
     h+='<div class="editbar"><span>Editing '+longDate(cur)+'</span><button class="btn sm pri" data-a="addItem">+ Add job</button><button class="btn sm" data-a="editDayNote">'+(d.note?'Edit':'Add')+' day note</button>'+(d.items.length?'<button class="btn sm" data-a="copyDayTo">Copy whole day to…</button>':'')+'</div>';
@@ -373,10 +384,18 @@ function renderDay(){
   h+=awayBanner(cur);
   if(d.note)h+='<div class="daynote">'+esc(d.note)+'</div>';
   if(!d.items.length){h+='<div class="empty">Nothing scheduled for '+longDate(cur)+' yet.'+(editing()?' Tap “+ Add job”.':'')+'</div>';return h;}
+  if(reorder&&editing()&&d.items.length>1){
+    h+='<div class="rlist">';
+    d.items.forEach(function(it,i){var j=itemJob(it)||{name:it.jobName||"Site"},t=typeOf(it.type);
+      h+='<div class="rrow" style="--tc:'+t.c+'"><div class="num">'+(i+1)+'</div><div class="rt"><b>'+esc(j.name)+'</b><span>'+t.n+(j.builder?' · '+esc(j.builder):'')+(it.calTitle&&it.calTitle.toLowerCase()!==String(j.name).toLowerCase()?' · '+esc(it.calTitle):'')+'</span></div>'+
+        '<button class="rbtn" data-a="up" data-i="'+i+'" aria-label="Move up"'+(i===0?' disabled':'')+'><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button><button class="rbtn" data-a="down" data-i="'+i+'" aria-label="Move down"'+(i===d.items.length-1?' disabled':'')+'><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>';});
+    return h+'</div>';
+  }
   h+='<div class="sites">';
   d.items.forEach(function(it,i){h+=siteCard(it,i,d.items.length);});
   return h+'</div>';
 }
+var reorder=false;
 var FOLD={};try{FOLD=JSON.parse(localStorage.getItem("cjb-fold")||"{}")||{};}catch(e){FOLD={};}
 function foldKey(it,i){return cur+"|"+(it.calId||it.id||((it.jobId||it.jobName||"")+"#"+i));}
 function foldSave(){try{var cut=addDays(todayKey(),-14),k;for(k in FOLD)if(k.slice(0,10)<cut)delete FOLD[k];localStorage.setItem("cjb-fold",JSON.stringify(FOLD));}catch(e){}}
@@ -672,6 +691,7 @@ document.addEventListener("click",function(e){
   case "nextDay":go("day",addWorkdays(cur,1));break;
   case "toToday":go("day",todayKey());break;
   case "checkUpd":checkUpdates(b);break;
+  case "reorder":reorder=!reorder;render();break;
   case "wfold":var wk2=b.getAttribute("data-k");wFoldSet(wk2,!FOLD[wk2+"|W"]);break;
   case "wfoldAll":var allw=!wFoldAllState(),mw=monday(cur);for(var wi=0;wi<5;wi++)wFoldSet(addDays(mw,wi),allw);break;
   case "fold":if(e.target.closest("a"))return;var se=b.closest(".site");foldSet(i,!se.classList.contains("folded"));var fb=se.querySelector(".fold");if(fb)fb.setAttribute("aria-expanded",String(!se.classList.contains("folded")));break;
