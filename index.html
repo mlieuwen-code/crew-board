@@ -52,7 +52,13 @@ a{color:var(--deep)}
 .sites{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;align-items:start}
 @media(max-width:700px){.sites{grid-template-columns:1fr}}
 .site{background:var(--card);border-radius:22px;box-shadow:0 2px 0 var(--line);overflow:hidden;border-top:10px solid var(--tc,#888)}
-.shead{padding:16px 18px 10px;display:flex;gap:12px;align-items:flex-start}
+.shead{padding:16px 18px 10px;display:flex;gap:12px;align-items:flex-start;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.shead .fold{flex:none;align-self:center;width:40px;height:40px;border-radius:12px;border:0;background:var(--chip,#EFE8DC);font-size:20px;font-weight:900;color:var(--muted);transition:transform .15s}
+.site.folded .shead .fold{transform:rotate(-90deg)}
+.site.folded>:not(.shead){display:none}
+.site.folded .shead{padding-bottom:16px}
+.site.folded .fsum{display:block}.site.folded .caltitle{display:none}
+.fsum{display:none;margin-top:6px;font-size:15px;font-weight:800;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .shead .t{flex:1;min-width:0}
 .shead h2{margin:0;font-size:28px;font-weight:900;line-height:1.1}
 .num{flex-shrink:0;width:44px;height:44px;border-radius:13px;background:var(--ink);color:#fff;font-size:22px;font-weight:900;display:flex;align-items:center;justify-content:center}
@@ -334,7 +340,8 @@ function renderDay(){
   var d=day(cur),h='';
   h+='<div class="nav"><button class="round" data-a="prevDay" aria-label="Previous day">‹</button><h1>'+(cur===realToday()?'Today':longDate(cur).split(",")[0])+'<small>'+longDate(cur)+' · '+d.items.length+' site'+(d.items.length===1?'':'s')+'</small></h1><button class="round" data-a="nextDay" aria-label="Next day">›</button>';
   if(cur!==todayKey())h+='<button class="btn sm" data-a="toToday">Today</button>';
-  h+='<button class="btn sm" data-a="copyDay">Copy as text</button></div>';
+  if(d.items.length>1)h+='<button class="btn sm" data-a="foldAll">'+(foldAllState()?'Expand all':'Collapse all')+'</button>';
+  h+=(editing()?'<button class="btn sm" data-a="copyDay">Copy as text</button>':'')+'</div>';
   if(editing()){
     h+='<div class="editbar"><span>Editing '+longDate(cur)+'</span><button class="btn sm pri" data-a="addItem">+ Add site</button><button class="btn sm" data-a="editDayNote">'+(d.note?'Edit':'Add')+' day note</button>'+(d.items.length?'<button class="btn sm" data-a="copyDayTo">Copy whole day to…</button>':'')+'</div>';
   }
@@ -346,10 +353,18 @@ function renderDay(){
   d.items.forEach(function(it,i){h+=siteCard(it,i,d.items.length);});
   return h+'</div>';
 }
+var FOLD={};try{FOLD=JSON.parse(localStorage.getItem("cjb-fold")||"{}")||{};}catch(e){FOLD={};}
+function foldKey(it,i){return cur+"|"+(it.calId||it.id||((it.jobId||it.jobName||"")+"#"+i));}
+function foldSave(){try{var cut=addDays(todayKey(),-14),k;for(k in FOLD)if(k.slice(0,10)<cut)delete FOLD[k];localStorage.setItem("cjb-fold",JSON.stringify(FOLD));}catch(e){}}
+function foldSet(i,v){var d=day(cur),it=d.items[i];if(!it)return;var k=foldKey(it,i);if(v)FOLD[k]=1;else delete FOLD[k];foldSave();var el=document.querySelectorAll(".sites .site")[i];if(el)el.classList.toggle("folded",!!v);foldBtn();}
+function foldAllState(){var d=day(cur);return d.items.length&&d.items.every(function(it,i){return FOLD[foldKey(it,i)];});}
+function foldBtn(){var b=document.querySelector('[data-a="foldAll"]');if(b)b.textContent=foldAllState()?"Expand all":"Collapse all";}
 function sec(cls,title,arr){if(!arr.length)return "";return '<div class="sec '+cls+'"><h3>'+title+'</h3><ul>'+arr.map(function(x){return '<li>'+esc(x)+'</li>';}).join("")+'</ul></div>';}
 function siteCard(it,i,n){
   var j=job(it.jobId)||{name:it.jobName||"Site",address:""},t=typeOf(it.type);
-  var h='<div class="site" style="--tc:'+t.c+'"><div class="shead"><div class="num">'+(i+1)+'</div><div class="t"><h2>'+esc(j.name)+(j.builder?' <span class="bld">'+esc(j.builder)+'</span>':'')+'</h2><div class="meta"><span class="type">'+t.n+'</span>'+(it.start?'Start '+esc(it.start):'')+(it.area?' · '+esc(it.area):'')+'</div>'+(it.calTitle&&it.calTitle.toLowerCase()!==String(j.name).toLowerCase()?'<div class="caltitle">📅 '+esc(it.calTitle)+'</div>':'')+'</div></div>';
+  var folded=!!FOLD[foldKey(it,i)];
+  var fs=[];if(it.crew&&it.crew.length)fs.push(it.crew.map(crewName).join(", "));if(j.address)fs.push(j.address.split(",")[0]);
+  var h='<div class="site'+(folded?' folded':'')+'" style="--tc:'+t.c+'"><div class="shead" data-a="fold" data-i="'+i+'"><div class="num">'+(i+1)+'</div><div class="t"><h2>'+esc(j.name)+(j.builder?' <span class="bld">'+esc(j.builder)+'</span>':'')+'</h2><div class="meta"><span class="type">'+t.n+'</span>'+(it.start?'Start '+esc(it.start):'')+(it.area?' · '+esc(it.area):'')+'</div>'+(it.calTitle&&it.calTitle.toLowerCase()!==String(j.name).toLowerCase()?'<div class="caltitle">📅 '+esc(it.calTitle)+'</div>':'')+(fs.length?'<div class="fsum">'+esc(fs.join(" · "))+'</div>':'')+'</div><button class="fold" aria-label="Collapse or expand this site" aria-expanded="'+(!folded)+'">⌄</button></div>';
   if(it.crew&&it.crew.length){h+='<div class="crew">'+it.crew.map(function(c){return '<span class="cchip'+(c===it.lead?' lead':'')+'">'+(c===it.lead?'★ ':'')+esc(crewName(c))+'</span>';}).join("")+'</div>';}
   if(j.address||j.contact){
     h+='<div class="addr"><div class="a">'+(j.address?esc(j.address):'<span style="color:var(--muted)">No address saved</span>')+(j.contact?'<small>Site contact: '+phoneLinks(j.contact)+'</small>':'')+(j.access?'<small>'+esc(j.access)+'</small>':'')+'</div>'+(j.address?'<a class="map" href="'+mapUrl(j.address)+'" target="_blank" rel="noopener">Map ↗</a>':'')+'</div>';
@@ -370,7 +385,7 @@ function renderWeek(){
   var m=monday(cur),wk=state.weeks[m]||"",h='';
   h+='<div class="nav"><button class="round" data-a="prevWeek" aria-label="Previous week">‹</button><h1>Week of '+shortDate(m)+'<small>'+shortDate(m)+' – '+shortDate(addDays(m,4))+'</small></h1><button class="round" data-a="nextWeek" aria-label="Next week">›</button>';
   if(monday(todayKey())!==m)h+='<button class="btn sm" data-a="toThisWeek">This week</button>';
-  h+='<button class="btn sm" data-a="copyWeek">Copy as text</button></div>';
+  h+=(editing()?'<button class="btn sm" data-a="copyWeek">Copy as text</button>':'')+'</div>';
   if(editing())h+='<div class="editbar"><span>Editing week of '+shortDate(m)+'</span><button class="btn sm" data-a="editWeekNote">'+(wk?'Edit':'Add')+' week note</button><button class="btn sm" data-a="copyWeekNext">Copy this week to next week</button></div>';
   if(wk)h+='<div class="daynote weeknote">'+esc(wk)+'</div>';
   h+='<div class="week">';
@@ -627,6 +642,8 @@ document.addEventListener("click",function(e){
   case "prevDay":go("day",addWorkdays(cur,-1));break;
   case "nextDay":go("day",addWorkdays(cur,1));break;
   case "toToday":go("day",todayKey());break;
+  case "fold":if(e.target.closest("a"))return;var se=b.closest(".site");foldSet(i,!se.classList.contains("folded"));var fb=se.querySelector(".fold");if(fb)fb.setAttribute("aria-expanded",String(!se.classList.contains("folded")));break;
+  case "foldAll":var all=!foldAllState();day(cur).items.forEach(function(it,k){foldSet(k,all);});break;
   case "prevWeek":go("week",addDays(monday(cur),-7));break;
   case "nextWeek":go("week",addDays(monday(cur),7));break;
   case "toThisWeek":go("week",todayKey());break;
