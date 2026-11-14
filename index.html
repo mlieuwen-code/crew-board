@@ -314,7 +314,7 @@ function askPin(){
 }
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!typingNote())load(true);});
 setInterval(function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!editing())load(true);},5*60*1000);
-var APP_VERSION="2026.11.13-3";
+var APP_VERSION="2026.11.13-4";
 /* Check for updates: get the newest app from GitHub; reload if it changed, otherwise refresh the schedule */
 function checkUpdates(btn){
   if(btn){btn.disabled=true;btn.textContent="Checking…";}
@@ -362,17 +362,17 @@ function tab(v,n){return '<button class="tab'+(view===v?' on':'')+'" data-a="go"
 
 function renderDay(){
   var d=day(cur),h='';
-  h+='<div class="nav"><button class="round" data-a="prevDay" aria-label="Previous day"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><h1>'+(cur===realToday()?'Today':longDate(cur).split(",")[0])+'<small>'+longDate(cur)+' · '+d.items.length+' site'+(d.items.length===1?'':'s')+'</small></h1><button class="round" data-a="nextDay" aria-label="Next day"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>';
+  h+='<div class="nav"><button class="round" data-a="prevDay" aria-label="Previous day"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><h1>'+(cur===realToday()?'Today':longDate(cur).split(",")[0])+'<small>'+longDate(cur)+' · '+d.items.length+' job'+(d.items.length===1?'':'s')+'</small></h1><button class="round" data-a="nextDay" aria-label="Next day"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>';
   if(cur!==todayKey())h+='<button class="btn sm" data-a="toToday">Today</button>';
   if(d.items.length>1)h+='<button class="btn sm" data-a="foldAll">'+(foldAllState()?'Expand all':'Collapse all')+'</button>';
   h+=(editing()?'<button class="btn sm" data-a="copyDay">Copy as text</button>':'')+'</div>';
   if(editing()){
-    h+='<div class="editbar"><span>Editing '+longDate(cur)+'</span><button class="btn sm pri" data-a="addItem">+ Add site</button><button class="btn sm" data-a="editDayNote">'+(d.note?'Edit':'Add')+' day note</button>'+(d.items.length?'<button class="btn sm" data-a="copyDayTo">Copy whole day to…</button>':'')+'</div>';
+    h+='<div class="editbar"><span>Editing '+longDate(cur)+'</span><button class="btn sm pri" data-a="addItem">+ Add job</button><button class="btn sm" data-a="editDayNote">'+(d.note?'Edit':'Add')+' day note</button>'+(d.items.length?'<button class="btn sm" data-a="copyDayTo">Copy whole day to…</button>':'')+'</div>';
   }
   if(editing()&&state.calError)h+='<div class="calbar"><span style="color:var(--bad)">Calendar not read: '+esc(state.calError)+'</span></div>';
   h+=awayBanner(cur);
   if(d.note)h+='<div class="daynote">'+esc(d.note)+'</div>';
-  if(!d.items.length){h+='<div class="empty">Nothing scheduled for '+longDate(cur)+' yet.'+(editing()?' Tap “+ Add site”.':'')+'</div>';return h;}
+  if(!d.items.length){h+='<div class="empty">Nothing scheduled for '+longDate(cur)+' yet.'+(editing()?' Tap “+ Add job”.':'')+'</div>';return h;}
   h+='<div class="sites">';
   d.items.forEach(function(it,i){h+=siteCard(it,i,d.items.length);});
   return h+'</div>';
@@ -419,7 +419,7 @@ function renderWeek(){
   for(var i=0;i<5;i++){
     var k=addDays(m,i),d=day(k);
     var wf=!!FOLD[k+"|W"],nsites=d.items.length;
-    h+='<div class="wday'+(k===realToday()?' today':'')+(wf?' wfolded':'')+'"><div class="wh"><button class="whead" data-a="openDay" data-k="'+k+'">'+DN[parse(k).getDay()].slice(0,3)+' <small>'+shortDate(k)+'</small></button><button class="wfold" data-a="wfold" data-k="'+k+'" aria-label="Collapse or expand '+DN[parse(k).getDay()]+'" aria-expanded="'+(!wf)+'"><span class="wcount">'+(nsites?nsites+' site'+(nsites===1?'':'s'):'')+'</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>'+(awayOn(k).length?'<div class="wempty wav">🏖 '+awayOn(k).map(esc).join(", ")+'</div>':'');
+    h+='<div class="wday'+(k===realToday()?' today':'')+(wf?' wfolded':'')+'"><div class="wh"><button class="whead" data-a="openDay" data-k="'+k+'">'+DN[parse(k).getDay()].slice(0,3)+' <small>'+shortDate(k)+'</small></button><button class="wfold" data-a="wfold" data-k="'+k+'" aria-label="Collapse or expand '+DN[parse(k).getDay()]+'" aria-expanded="'+(!wf)+'"><span class="wcount">'+(nsites?nsites+' job'+(nsites===1?'':'s'):'')+'</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>'+(awayOn(k).length?'<div class="wempty wav">🏖 '+awayOn(k).map(esc).join(", ")+'</div>':'');
     if(d.note)h+='<div class="wempty" style="color:var(--deep)">'+esc(d.note.split("\n")[0])+'</div>';
     if(!d.items.length)h+='<div class="wempty">—</div>';
     d.items.forEach(function(it){
