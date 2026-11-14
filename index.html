@@ -53,8 +53,9 @@ a{color:var(--deep)}
 @media(max-width:700px){.sites{grid-template-columns:1fr}}
 .site{background:var(--card);border-radius:22px;box-shadow:0 2px 0 var(--line);overflow:hidden;border-top:10px solid var(--tc,#888)}
 .shead{padding:16px 18px 10px;display:flex;gap:12px;align-items:flex-start;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.shead .fold{flex:none;align-self:center;width:40px;height:40px;border-radius:12px;border:0;background:var(--chip,#EFE8DC);font-size:20px;font-weight:900;color:var(--muted);transition:transform .15s}
-.site.folded .shead .fold{transform:rotate(-90deg)}
+.shead .fold{flex:none;align-self:center;width:44px;height:44px;border-radius:12px;border:0;padding:0;background:var(--chip,#EFE8DC);color:var(--ink);display:flex;align-items:center;justify-content:center}
+.shead .fold svg{display:block;transition:transform .15s}
+.site.folded .shead .fold svg{transform:rotate(-90deg)}
 .site.folded>:not(.shead){display:none}
 .site.folded .shead{padding-bottom:16px}
 .site.folded .fsum{display:block}.site.folded .caltitle{display:none}
@@ -364,7 +365,7 @@ function siteCard(it,i,n){
   var j=job(it.jobId)||{name:it.jobName||"Site",address:""},t=typeOf(it.type);
   var folded=!!FOLD[foldKey(it,i)];
   var fs=[];if(it.crew&&it.crew.length)fs.push(it.crew.map(crewName).join(", "));if(j.address)fs.push(j.address.split(",")[0]);
-  var h='<div class="site'+(folded?' folded':'')+'" style="--tc:'+t.c+'"><div class="shead" data-a="fold" data-i="'+i+'"><div class="num">'+(i+1)+'</div><div class="t"><h2>'+esc(j.name)+(j.builder?' <span class="bld">'+esc(j.builder)+'</span>':'')+'</h2><div class="meta"><span class="type">'+t.n+'</span>'+(it.start?'Start '+esc(it.start):'')+(it.area?' · '+esc(it.area):'')+'</div>'+(it.calTitle&&it.calTitle.toLowerCase()!==String(j.name).toLowerCase()?'<div class="caltitle">📅 '+esc(it.calTitle)+'</div>':'')+(fs.length?'<div class="fsum">'+esc(fs.join(" · "))+'</div>':'')+'</div><button class="fold" aria-label="Collapse or expand this site" aria-expanded="'+(!folded)+'">⌄</button></div>';
+  var h='<div class="site'+(folded?' folded':'')+'" style="--tc:'+t.c+'"><div class="shead" data-a="fold" data-i="'+i+'"><div class="num">'+(i+1)+'</div><div class="t"><h2>'+esc(j.name)+(j.builder?' <span class="bld">'+esc(j.builder)+'</span>':'')+'</h2><div class="meta"><span class="type">'+t.n+'</span>'+(it.start?'Start '+esc(it.start):'')+(it.area?' · '+esc(it.area):'')+'</div>'+(it.calTitle&&it.calTitle.toLowerCase()!==String(j.name).toLowerCase()?'<div class="caltitle">📅 '+esc(it.calTitle)+'</div>':'')+(fs.length?'<div class="fsum">'+esc(fs.join(" · "))+'</div>':'')+'</div><button class="fold" aria-label="Collapse or expand this site" aria-expanded="'+(!folded)+'"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>';
   if(it.crew&&it.crew.length){h+='<div class="crew">'+it.crew.map(function(c){return '<span class="cchip'+(c===it.lead?' lead':'')+'">'+(c===it.lead?'★ ':'')+esc(crewName(c))+'</span>';}).join("")+'</div>';}
   if(j.address||j.contact){
     h+='<div class="addr"><div class="a">'+(j.address?esc(j.address):'<span style="color:var(--muted)">No address saved</span>')+(j.contact?'<small>Site contact: '+phoneLinks(j.contact)+'</small>':'')+(j.access?'<small>'+esc(j.access)+'</small>':'')+'</div>'+(j.address?'<a class="map" href="'+mapUrl(j.address)+'" target="_blank" rel="noopener">Map ↗</a>':'')+'</div>';
