@@ -166,7 +166,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
 @media(max-width:560px){
   body{font-size:17px}
   .brand{min-width:0}
-  .brand .eyebrow{display:none}
+  .brand .eyebrow{font-size:11px;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .brand b{font-size:21px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .brand>div:last-child{min-width:0}
   .top{gap:8px;flex-wrap:nowrap}
@@ -309,7 +309,7 @@ function askPin(){
 }
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!typingNote())load(true);});
 setInterval(function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!editing())load(true);},5*60*1000);
-var APP_VERSION="2026.11.13-1";
+var APP_VERSION="2026.11.13-2";
 /* Check for updates: get the newest app from GitHub; reload if it changed, otherwise refresh the schedule */
 function checkUpdates(btn){
   if(btn){btn.disabled=true;btn.textContent="Checking…";}
