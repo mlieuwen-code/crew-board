@@ -277,9 +277,19 @@ function longDate(k){var d=parse(k);return DN[d.getDay()]+", "+MN[d.getMonth()]+
 function shortDate(k){var d=parse(k);return MN[d.getMonth()]+" "+d.getDate();}
 function typeOf(k){for(var i=0;i<TYPES.length;i++)if(TYPES[i].k===k)return TYPES[i];return TYPES[TYPES.length-1];}
 function job(id){for(var i=0;i<state.jobs.length;i++)if(state.jobs[i].id===id)return state.jobs[i];return null;}
-/* calendar events whose title only has a jobsite's nickname (e.g. "Vara") still get that jobsite */
-function akaJob(title){var t=" "+String(title||"").toLowerCase().replace(/[^a-z0-9]+/g," ")+" ",best=null,bn=0;(state.jobs||[]).forEach(function(j){String(j.aka||"").split(",").forEach(function(x){var n=x.trim().toLowerCase().replace(/[^a-z0-9]+/g," ").trim();if(n&&t.indexOf(" "+n+" ")>=0&&n.length>bn){best=j;bn=n.length;}});});return best;}
-function itemJob(it){return job(it.jobId)||(!it.jobId&&it.calTitle?akaJob(it.calTitle):null);}
+/* Which jobsite a calendar event belongs to. This lives in the app (not the Google backend) so it can be changed from a phone:
+   1) the jobsite name or one of its calendar nicknames appears as whole words in the event title (longest wins),
+   2) otherwise the builder name appears and only one jobsite has that builder,
+   3) otherwise whatever the backend matched, or a jobsite picked by hand. */
+function wordIn(t,w){return new RegExp("(^|[^a-z0-9])"+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"([^a-z0-9]|$)").test(t);}
+function matchJob(title){
+  var t=String(title||"").toLowerCase(),best=null,bn=0;if(!t)return null;
+  (state.jobs||[]).forEach(function(j){[j.name].concat(String(j.aka||"").split(",")).forEach(function(x){var n=String(x||"").trim().toLowerCase();if(n&&n.length>bn&&wordIn(t,n)){best=j;bn=n.length;}});});
+  if(best)return best;
+  var hits=(state.jobs||[]).filter(function(j){var b=String(j.builder||"").toLowerCase();return b&&wordIn(t,b);});
+  return hits.length===1?hits[0]:null;
+}
+function itemJob(it){return (it.jobManual&&job(it.jobManual))||(it.calId&&it.calTitle?matchJob(it.calTitle):null)||job(it.jobId);}
 function crewName(id){for(var i=0;i<state.crew.length;i++)if(state.crew[i].id===id)return state.crew[i].name;return "?";}
 function day(k){return state.days[k]||{note:"",items:[]};}
 function lines(s){return String(s||"").split(/\n/).map(function(x){return x.replace(/^\s*[-•*]\s*/,"").trim();}).filter(Boolean);}
@@ -324,7 +334,7 @@ function askPin(){
 }
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!typingNote())load(true);});
 setInterval(function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!editing())load(true);},5*60*1000);
-var APP_VERSION="2026.11.14-1";
+var APP_VERSION="2026.11.16-1";
 /* Check for updates: get the newest app from GitHub; reload if it changed, otherwise refresh the schedule */
 function checkUpdates(btn){
   if(btn){btn.disabled=true;btn.textContent="Checking…";}
@@ -583,7 +593,7 @@ function closeModal(){modalEl.hidden=true;modalEl.innerHTML="";}
 var draft=null,draftIdx=-1,draftDay=null;
 function itemForm(){
   var it=draft,h='<h2>'+(draftIdx<0?'Add site':'Edit site')+' · '+shortDate(draftDay)+'</h2>';
-  h+='<div class="row2"><div><label>Jobsite</label><select id="f-job"><option value="">Pick a jobsite…</option>'+state.jobs.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(j){return '<option value="'+j.id+'"'+(j.id===it.jobId?' selected':'')+'>'+esc(j.name)+'</option>';}).join("")+'<option value="__new">+ New jobsite…</option></select></div>';
+  h+='<div class="row2"><div><label>Jobsite</label><select id="f-job"><option value="">Pick a jobsite…</option>'+state.jobs.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(j){return '<option value="'+j.id+'"'+(j.id===((itemJob(it)||{}).id)?' selected':'')+'>'+esc(j.name)+'</option>';}).join("")+'<option value="__new">+ New jobsite…</option></select></div>';
   h+='<div><label>Work type</label><select id="f-type">'+TYPES.map(function(t){return '<option value="'+t.k+'"'+(t.k===it.type?' selected':'')+'>'+t.n+'</option>';}).join("")+'</select></div></div>';
   h+='<div class="row2"><div><label>Start time <i>(optional)</i></label><input id="f-start" value="'+esc(it.start||"")+'" placeholder="7:00"></div><div><label>Building / area <i>(optional)</i></label><input id="f-area" value="'+esc(it.area||"")+'" placeholder="Bldg 3, units 301–312"></div></div>';
   h+='<div><label>Crew <i>— tap to assign, tap again to make lead ★, again to remove</i></label><div class="picks" id="f-crew">'+state.crew.map(function(c){var on=it.crew.indexOf(c.id)>-1,ld=it.lead===c.id;return '<button type="button" class="pick'+(ld?' lead':on?' on':'')+'" data-a="pickCrew" data-id="'+c.id+'">'+(ld?'★ ':'')+esc(c.name)+'</button>';}).join("")+(state.crew.length?'':'<span style="color:var(--muted);font-weight:700">Add crew names in the Crew tab first.</span>')+'</div></div>';
@@ -598,7 +608,7 @@ function itemForm(){
 }
 function grab(){
   var g=function(id){var el=document.getElementById(id);return el?el.value:"";};
-  var jv=g("f-job");draft.jobId=jv==="__new"?draft.jobId:jv;draft.type=g("f-type");draft.start=g("f-start").trim();draft.area=g("f-area").trim();
+  var jv=g("f-job");draft.jobId=jv==="__new"?draft.jobId:jv;if(draft.calId&&jv!=="__new"){var auto=matchJob(draft.calTitle);if(jv&&(!auto||auto.id!==jv))draft.jobManual=jv;else delete draft.jobManual;}draft.type=g("f-type");draft.start=g("f-start").trim();draft.area=g("f-area").trim();
   draft.leaveOff=g("f-lo");draft.tasks=g("f-do");draft.measure=g("f-ms");draft.bring=g("f-br");draft.notes=g("f-nt");
 }
 var jobDraft=null,jobBack=false;
@@ -676,10 +686,10 @@ document.addEventListener("click",function(e){
     var ta=document.querySelector('[data-inote="'+i+'"]'),src=day(cur).items[i];if(!src)return;
     if(ta)src.notes=ta.value;
     if(!src.notes||!src.notes.trim()){toast("Type a note first");return;}
-    var same=function(it){return src.jobId?it.jobId===src.jobId:(it.jobName||"")===(src.jobName||"");};
+    var sj=itemJob(src),same=function(it){var x=itemJob(it);return sj?(x&&x.id===sj.id):(it.jobName||"")===(src.jobName||"");};
     var ks=Object.keys(state.days).filter(function(k){return k>cur;}).sort(),hit=null,hk=null;
     for(var n=0;n<ks.length&&!hit;n++){var f=state.days[ks[n]].items.filter(same)[0];if(f){hit=f;hk=ks[n];}}
-    var nm=(job(src.jobId)||{name:src.jobName||"this job"}).name;
+    var nm=(sj||{name:src.jobName||"this job"}).name;
     if(!hit){toast("No later day with "+nm+" on the schedule yet");return;}
     var t=src.notes.trim();
     if((hit.notes||"").indexOf(t)===-1)hit.notes=(hit.notes&&hit.notes.trim()?hit.notes.trim()+"\n":"")+t;

@@ -30,3 +30,6 @@ After changing `Code.gs` later: Deploy → Manage deployments → ✎ → Versio
 
 ## Versions
 Bump `APP_VERSION` in index.html on every change so **Check for updates** (bottom of the app) sees it.
+
+## Calendar matching
+The app (index.html `matchJob`) decides which jobsite a calendar event belongs to: name or calendar nickname (`aka`) as whole words, longest wins; else a unique builder; else the backend jobId. A jobsite picked by hand on a calendar item is kept in `jobManual`. Change matching here, no backend deploy needed.
