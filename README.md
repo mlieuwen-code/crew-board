@@ -20,7 +20,7 @@ Everything typed on a card (crew, leave-offs, to-dos, measures, notes) is kept i
 
 ## Backend setup (once)
 1. Signed in to matt@ridgewayaluminum.com (it has access to the **Ridgeway Schedule** calendar, ID `m.lieuwen@gmail.com`), go to script.google.com → **New project**, name it **Crew Job Board**.
-2. Replace the contents of `Code.gs` with `apps-script/Code.gs` from this repo. Change `ADMIN_PIN` at the top.
+2. Replace the contents of `Code.gs` with `apps-script/Code.gs` from this repo. Then Project Settings → **Script properties** → add `ADMIN_PIN` with the manager PIN (it's not in the code because this repo is public).
 3. Project Settings → tick **Show "appsscript.json" manifest file**, then replace it with `apps-script/appsscript.json`.
 4. Pick `testSetup` in the function menu → **Run** → allow access. The log should say how many site cards it found.
 5. **Deploy → New deployment → Web app** · Execute as: **Me** · Who has access: **Anyone** → Deploy → copy the URL ending in `/exec`.

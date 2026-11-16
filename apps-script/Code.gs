@@ -14,7 +14,9 @@
  */
 
 // ===== Settings you can change =====
-const ADMIN_PIN = '5742';                      // manager PIN (tap the app logo 5 times to enter it)
+// Manager PIN: set it in Project Settings → Script properties as ADMIN_PIN (kept out of this public code).
+// If it isn't set, nothing can unlock (a random value is used).
+const ADMIN_PIN = PropertiesService.getScriptProperties().getProperty('ADMIN_PIN') || Utilities.getUuid();
 const CALENDAR_ID = 'm.lieuwen@gmail.com';     // the Ridgeway Schedule calendar (shared with matt@ridgewayaluminum.com)
 const CALENDAR_NAME = 'Ridgeway Schedule';     // used if the ID can't be opened
 const DATA_FILE_NAME = 'Crew Job Board - data.json';
