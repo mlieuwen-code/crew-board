@@ -218,7 +218,7 @@ function emailRequest_(x) {
   const when = x.from === x.to ? fmtD(x.from) : fmtD(x.from) + ' – ' + fmtD(x.to);
   MailApp.sendEmail({
     to: NOTIFY_EMAIL,
-    name: 'Crew Board',
+    name: 'Time Off Request Line',
     subject: 'Time off request: ' + x.name + ' · ' + when,
     htmlBody: '<p><b>' + x.name + '</b> has asked for time off.</p>' +
       '<p><b>When:</b> ' + when + '<br><b>Reason:</b> ' + (x.note ? x.note.replace(/</g, '&lt;') : '—') + '</p>' +
