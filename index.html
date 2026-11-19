@@ -344,7 +344,7 @@ function askPin(){
 }
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!typingNote())load(true);});
 setInterval(function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!editing())load(true);},5*60*1000);
-var APP_VERSION="2026.11.19-1";
+var APP_VERSION="2026.11.19-2";
 /* Check for updates: get the newest app from GitHub; reload if it changed, otherwise refresh the schedule */
 function checkUpdates(btn){
   if(btn){btn.disabled=true;btn.textContent="Checking…";}
@@ -385,8 +385,10 @@ function render(){
   if(view==="day")h+=renderDay();else if(view==="week")h+=renderWeek();else if(view==="jobs")h+=renderJobs();else if(view==="off")h+=renderOff();else if(view==="forms")h+=renderForms();else h+=renderCrew();
   h+='<div class="legend">'+TYPES.map(function(t){return '<span><i style="background:'+t.c+'"></i>'+t.n+'</span>';}).join("")+'</div>';
   if(state.updatedAt)h+='<div class="ro">Last updated '+new Date(state.updatedAt).toLocaleString(undefined,{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})+'</div>';
+  h+='<div class="updrow" id="pushRow"></div>';
   h+='<div class="updrow"><button class="btn sm" data-a="checkUpd">Check for updates</button><span>App version '+APP_VERSION+'</span></div>';
   root.innerHTML=h;
+  setTimeout(pushUI,0);
 }
 function tab(v,n){return '<button class="tab'+(view===v?' on':'')+'" data-a="go" data-v="'+v+'">'+n+'</button>';}
 
@@ -394,6 +396,7 @@ function renderDay(){
   var d=day(cur),h='';
   h+='<div class="nav"><button class="round" data-a="prevDay" aria-label="Previous day"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><h1>'+(cur===realToday()?'Today':longDate(cur).split(",")[0])+'<small>'+longDate(cur)+' · '+d.items.length+' job'+(d.items.length===1?'':'s')+'</small></h1><button class="round" data-a="nextDay" aria-label="Next day"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>';
   if(cur!==todayKey())h+='<button class="btn sm" data-a="toToday">Today</button>';
+  if(editing())h+='<button class="btn sm" data-a="notify">📣 Notify crew</button>';
   if(editing()&&d.items.length>1)h+='<button class="btn sm'+(reorder?' pri':'')+'" data-a="reorder">'+(reorder?'✓ Done reordering':'⇅ Reorder')+'</button>';
   if(d.items.length>1&&!reorder)h+='<button class="btn sm" data-a="foldAll">'+(foldAllState()?'Expand all':'Collapse all')+'</button>';
   h+=(editing()?'<button class="btn sm" data-a="copyDay">Copy as text</button>':'')+'</div>';
@@ -681,6 +684,92 @@ function openForm(i){
 }
 function closeForm(){if(formEl){formEl.hidden=true;formEl.innerHTML="";}document.documentElement.style.overflow="";}
 
+/* ---------- push notifications ---------- */
+/* Web Push done in the browser: the manager's app signs (VAPID, ES256) and encrypts (RFC 8291 aes128gcm) each message with
+   WebCrypto, then the Google backend only relays the bytes to Apple/Google push servers. */
+var WP={
+  b64u:function(buf){var b=new Uint8Array(buf),s="";for(var i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");},
+  unb64u:function(str){str=String(str).replace(/-/g,"+").replace(/_/g,"/");while(str.length%4)str+="=";var s=atob(str),b=new Uint8Array(s.length);for(var i=0;i<s.length;i++)b[i]=s.charCodeAt(i);return b;},
+  b64:function(buf){var b=new Uint8Array(buf),s="";for(var i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);return btoa(s);},
+  cat:function(){var n=0,i,a=arguments;for(i=0;i<a.length;i++)n+=a[i].length;var o=new Uint8Array(n),p=0;for(i=0;i<a.length;i++){o.set(a[i],p);p+=a[i].length;}return o;},
+  utf8:function(s){return new TextEncoder().encode(s);},
+  hmac:function(key,data){return crypto.subtle.importKey("raw",key,{name:"HMAC",hash:"SHA-256"},false,["sign"]).then(function(k){return crypto.subtle.sign("HMAC",k,data);}).then(function(b){return new Uint8Array(b);});},
+  newVapid:function(){return crypto.subtle.generateKey({name:"ECDSA",namedCurve:"P-256"},true,["sign","verify"]).then(function(kp){return Promise.all([crypto.subtle.exportKey("raw",kp.publicKey),crypto.subtle.exportKey("jwk",kp.privateKey)]);}).then(function(r){return{publicKey:WP.b64u(r[0]),privateJwk:r[1]};});},
+  jwt:function(privateJwk,aud,subject){
+    var enc=function(o){return WP.b64u(WP.utf8(JSON.stringify(o)));};
+    var unsigned=enc({typ:"JWT",alg:"ES256"})+"."+enc({aud:aud,exp:Math.floor(Date.now()/1000)+12*3600,sub:subject});
+    return crypto.subtle.importKey("jwk",privateJwk,{name:"ECDSA",namedCurve:"P-256"},false,["sign"]).then(function(k){return crypto.subtle.sign({name:"ECDSA",hash:"SHA-256"},k,WP.utf8(unsigned));}).then(function(sig){return unsigned+"."+WP.b64u(sig);});
+  },
+  encrypt:function(sub,payload){
+    var uaPub=WP.unb64u(sub.keys.p256dh),auth=WP.unb64u(sub.keys.auth),salt=crypto.getRandomValues(new Uint8Array(16)),asPub,ecdh;
+    return crypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]).then(function(kp){
+      return crypto.subtle.exportKey("raw",kp.publicKey).then(function(raw){asPub=new Uint8Array(raw);
+        return crypto.subtle.importKey("raw",uaPub,{name:"ECDH",namedCurve:"P-256"},false,[]);}).then(function(uk){return crypto.subtle.deriveBits({name:"ECDH",public:uk},kp.privateKey,256);});
+    }).then(function(bits){ecdh=new Uint8Array(bits);return WP.hmac(auth,ecdh);})
+    .then(function(prkKey){return WP.hmac(prkKey,WP.cat(WP.utf8("WebPush: info\0"),uaPub,asPub,new Uint8Array([1])));})
+    .then(function(ikm){return WP.hmac(salt,ikm);})
+    .then(function(prk){return Promise.all([WP.hmac(prk,WP.cat(WP.utf8("Content-Encoding: aes128gcm\0"),new Uint8Array([1]))),WP.hmac(prk,WP.cat(WP.utf8("Content-Encoding: nonce\0"),new Uint8Array([1])))]);})
+    .then(function(r){var cek=r[0].slice(0,16),nonce=r[1].slice(0,12);
+      return crypto.subtle.importKey("raw",cek,{name:"AES-GCM"},false,["encrypt"]).then(function(k){return crypto.subtle.encrypt({name:"AES-GCM",iv:nonce},k,WP.cat(WP.utf8(payload),new Uint8Array([2])));});})
+    .then(function(ct){var rs=new Uint8Array([0,0,16,0]);return WP.cat(salt,rs,new Uint8Array([65]),asPub,new Uint8Array(ct));});
+  },
+  message:function(sub,vapid,payload){
+    var aud=new URL(sub.endpoint).origin;
+    return Promise.all([WP.jwt(vapid.privateJwk,aud,"mailto:matt@ridgewayaluminum.com"),WP.encrypt(sub,payload)]).then(function(r){
+      return{endpoint:sub.endpoint,body:WP.b64(r[1]),headers:{"Authorization":"vapid t="+r[0]+", k="+vapid.publicKey,"Content-Encoding":"aes128gcm","TTL":"86400","Urgency":"high"}};});
+  }
+};
+
+function pushCapable(){return "serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;}
+function isStandalone(){return !!(navigator.standalone||(window.matchMedia&&matchMedia("(display-mode: standalone)").matches));}
+/* footer row: turn notifications on (crew), or say they're on */
+function pushUI(){
+  var el=document.getElementById("pushRow");if(!el)return;
+  if(!pushCapable()){el.innerHTML=/iPhone|iPad/.test(navigator.userAgent)&&!isStandalone()?'<span>Add Crew Board to your Home Screen to get notifications</span>':'';return;}
+  navigator.serviceWorker.ready.then(function(reg){return reg.pushManager.getSubscription();}).then(function(sub){
+    el.innerHTML=sub&&Notification.permission==="granted"?'<span>🔔 Notifications are on</span>':(Notification.permission==="denied"?'<span>Notifications are blocked in Settings › Notifications › Crew Board</span>':'<button class="btn sm pri" data-a="pushOn">🔔 Turn on notifications</button>');
+  }).catch(function(){el.innerHTML="";});
+}
+function pushOn(btn){
+  if(btn){btn.disabled=true;btn.textContent="Turning on…";}
+  var key;
+  fetch(API_URL+"?action=vapid").then(function(r){return r.json();}).then(function(r){key=r&&r.key;if(!key)throw new Error("Notifications aren't set up yet. Ask Matt.");
+    return Notification.requestPermission();}).then(function(p){if(p!=="granted")throw new Error("Notifications weren't allowed");
+    return navigator.serviceWorker.ready;}).then(function(reg){return reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:WP.unb64u(key)});})
+  .then(function(sub){var me="";try{me=localStorage.getItem("cjb-me")||"";}catch(e){}
+    if(!me){me=(window.prompt("Your name? (so Matt knows whose phone this is)")||"").trim();try{localStorage.setItem("cjb-me",me);}catch(e){}}
+    return post({action:"subscribe",sub:sub.toJSON(),name:me});})
+  .then(function(r){if(!r||!r.ok)throw new Error((r&&r.error)||"Couldn't turn on");toast("🔔 Notifications on");pushUI();})
+  .catch(function(e){toast(String(e&&e.message||e));pushUI();});
+}
+/* manager: send a notification to every phone that turned them on */
+var pushInfoCache=null;
+function notifyForm(){
+  openModal('<h2>📣 Notify the crew</h2><p id="nfCount" style="margin:0;color:var(--muted);font-weight:500">Checking phones…</p><label>Message</label><textarea id="nfMsg" rows="4" maxlength="240" placeholder="e.g. Grab your jackets from the merc before you head out"></textarea><div class="mrow"><button class="btn ghost" data-a="close">Cancel</button><button class="btn pri" data-a="notifySend">Send</button></div>');
+  post({action:"pushInfo",pin:pin}).then(function(r){pushInfoCache=r;var c=document.getElementById("nfCount");if(!c)return;
+    if(!r||!r.ok){c.textContent="Couldn't reach the board: "+((r&&r.error)||"");return;}
+    var n=r.subs.length,names=r.subs.map(function(x){return x.name;}).filter(Boolean);
+    c.textContent=n?("Goes to "+n+" phone"+(n===1?"":"s")+(names.length?": "+names.join(", "):"")):"No phones have turned on notifications yet. The crew tap 🔔 Turn on notifications at the bottom of the board.";
+  }).catch(function(){var c=document.getElementById("nfCount");if(c)c.textContent="Couldn't reach the board.";});
+  setTimeout(function(){var t=document.getElementById("nfMsg");if(t)t.focus();},150);
+}
+function ensureVapid(info){
+  if(info.vapidPublic&&info.vapidPrivate&&info.vapidPrivate!=="{}")return Promise.resolve({publicKey:info.vapidPublic,privateJwk:JSON.parse(info.vapidPrivate)});
+  return WP.newVapid().then(function(v){return post({action:"setVapid",pin:pin,publicKey:v.publicKey,privateJwk:v.privateJwk}).then(function(r){if(!r||!r.ok)throw new Error((r&&r.error)||"key setup failed");return v;});});
+}
+function notifySend(btn){
+  var msg=(document.getElementById("nfMsg").value||"").trim();if(!msg){toast("Type a message");return;}
+  btn.disabled=true;btn.textContent="Sending…";
+  var info;
+  (pushInfoCache&&pushInfoCache.ok?Promise.resolve(pushInfoCache):post({action:"pushInfo",pin:pin})).then(function(r){info=r;if(!r||!r.ok)throw new Error((r&&r.error)||"Couldn't reach the board");
+    if(!r.subs.length)throw new Error("No phones have notifications on yet");return ensureVapid(r);})
+  .then(function(v){var payload=JSON.stringify({title:"Crew Board",body:msg,url:"./"});return Promise.all(info.subs.map(function(sub){return WP.message(sub,v,payload);}));})
+  .then(function(msgs){return post({action:"pushSend",pin:pin,msgs:msgs});})
+  .then(function(r){if(!r||!r.ok)throw new Error((r&&r.error)||"Send failed");closeModal();pushInfoCache=null;
+    toast("📣 Sent to "+r.sent+" phone"+(r.sent===1?"":"s")+(r.removed?" ("+r.removed+" old phone"+(r.removed===1?"":"s")+" removed)":""));})
+  .catch(function(e){btn.disabled=false;btn.textContent="Send";toast(String(e&&e.message||e));});
+}
+
 /* ---------- events ---------- */
 document.addEventListener("click",function(e){
   var b=e.target.closest("[data-a]");if(!b)return;var a=b.getAttribute("data-a"),i=+b.getAttribute("data-i"),d;
@@ -711,6 +800,9 @@ document.addEventListener("click",function(e){
   case "nextDay":go("day",addWorkdays(cur,1));break;
   case "toToday":go("day",todayKey());break;
   case "checkUpd":checkUpdates(b);break;
+  case "pushOn":pushOn(b);break;
+  case "notify":notifyForm();break;
+  case "notifySend":notifySend(b);break;
   case "reorder":reorder=!reorder;render();break;
   case "wfold":var wk2=b.getAttribute("data-k");wFoldSet(wk2,!FOLD[wk2+"|W"]);break;
   case "wfoldAll":var allw=!wFoldAllState(),mw=monday(cur);for(var wi=0;wi<5;wi++)wFoldSet(addDays(mw,wi),allw);break;
