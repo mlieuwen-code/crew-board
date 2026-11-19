@@ -8,7 +8,7 @@
 
 <link rel="icon" href="../icon-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png?v=3">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend+Exa:wght@700;800&family=Nunito:wght@400;600;700;800;900&display=swap">
 <style id="app-style">
 :root{
   --bg:#EDF1F5;--card:#FFFFFF;--ink:#0F1E29;--muted:#5A6B79;--line:#D5DEE7;--field:#F5F8FB;
@@ -175,6 +175,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
 .top .btn.pri{background:var(--orange)}
 .brand{gap:16px}
 .brand>div:last-child{border-left:2px solid rgba(255,255,255,.18);padding-left:16px}
+.top .brand b{font-family:'Lexend Exa',var(--font);font-weight:800;text-transform:uppercase;font-size:20px;letter-spacing:.01em;margin-top:3px;background:linear-gradient(180deg,#F2F6FA 15%,#9FB6D3 95%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;padding-bottom:2px}
 /* ---- phone ---- */
 @media(max-width:560px){
   body{font-size:17px}
@@ -184,6 +185,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
   .brand>div:last-child{min-width:0}
   .top{gap:8px;flex-wrap:nowrap;padding-top:max(10px,env(safe-area-inset-top));padding-bottom:10px}
   .brand{gap:10px}.brand>div:last-child{padding-left:0;border-left:0}
+  .top .brand b{font-size:14px;letter-spacing:-.03em}
   .top .btn{padding:0 12px}
   .logo,.logo img{height:27px}
   .top .btn{min-height:46px;padding:0 14px}
@@ -249,7 +251,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
 <script id="app-script">(function(){
 "use strict";
 var TITLE="Crew Job Board";
-var FONT="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap";
+var FONT="https://fonts.googleapis.com/css2?family=Lexend+Exa:wght@700;800&family=Nunito:wght@400;600;700;800;900&display=swap";
 var TYPES=[
  {k:"install",n:"Install",c:"#3F51B5"},
  {k:"measure",n:"Measure",c:"#D50000"},
