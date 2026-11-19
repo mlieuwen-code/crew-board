@@ -1,7 +1,7 @@
 // Crew Job Board: keeps a copy of the app on the phone so it opens with no signal.
 // The schedule itself comes fresh from the server each time; the app shows the last copy if there's no signal.
-const CACHE = 'crewboard-v7';
-const CORE = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
+const CACHE = 'crewboard-v8';
+const CORE = ['./', 'index.html', 'manifest.webmanifest', 'ra-icon-192.png', 'ra-icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('crewboard-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {

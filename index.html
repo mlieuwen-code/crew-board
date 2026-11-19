@@ -5,9 +5,9 @@
 <meta name="theme-color" content="#123A52">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Crew Board">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon-192.png">
-<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png?v=3">
+<link rel="manifest" href="manifest.webmanifest?v=3">
+<link rel="icon" href="ra-icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="ra-icon-180.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend+Exa:wght@700;800&family=Lexend:wght@400;500;600;700;800;900&display=swap">
 <style id="app-style">
 :root{
@@ -344,7 +344,7 @@ function askPin(){
 }
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!typingNote())load(true);});
 setInterval(function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!editing())load(true);},5*60*1000);
-var APP_VERSION="2026.11.19-2";
+var APP_VERSION="2026.11.19-3";
 /* Check for updates: get the newest app from GitHub; reload if it changed, otherwise refresh the schedule */
 function checkUpdates(btn){
   if(btn){btn.disabled=true;btn.textContent="Checking…";}
