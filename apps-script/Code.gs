@@ -29,11 +29,17 @@ const DAYS_AHEAD = 42;                         // and how far ahead
 const COLOR_TYPE = { '9': 'install', '11': 'measure', '10': 'fab', '4': 'pickup', '3': 'other', '6': 'other' };
 const SEED = {"crew": [{"id": "c1", "name": "Matt"}, {"id": "c2", "name": "Joel"}, {"id": "c3", "name": "Dave"}, {"id": "c4", "name": "Jim"}, {"id": "c5", "name": "Ian"}, {"id": "c6", "name": "Chris"}], "jobs": [{"id": "j1", "name": "Aria", "address": "2151 McCallum Road, Abbotsford, BC", "contact": "Mic \u00b7 604-316-3443", "access": "", "notes": "", "builder": "Diverse"}, {"id": "j3", "name": "Astoria", "address": "7042 204 Street, Langley, BC", "contact": "", "access": "", "notes": "", "builder": "Apcon"}, {"id": "j4", "name": "Sage", "address": "34365 Gladys Avenue, Abbotsford, BC", "contact": "Sean \u00b7 778-549-8370", "access": "", "notes": "", "builder": "Diverse"}, {"id": "j5", "name": "Wright", "address": "2751 Montrose Avenue, Abbotsford, BC", "contact": "Trevor \u00b7 604-781-6312", "access": "", "notes": "", "builder": "Rail District"}, {"id": "j6", "name": "Colton", "address": "8539 201B Street, Langley, BC", "contact": "Mike \u00b7 778-387-4448", "access": "", "notes": "", "builder": "Tannin"}, {"id": "j7", "name": "Caleb", "address": "32027 Peardonville Road, Abbotsford, BC", "contact": "Kevin \u00b7 604-799-1772", "access": "", "notes": "", "builder": "Whitetail"}, {"id": "j9", "name": "Montgomery", "address": "33281 2nd Avenue, Mission, BC", "contact": "Mark \u00b7 604-835-1662", "access": "", "notes": "", "builder": "Reddale"}, {"id": "j10", "name": "Elijah", "address": "20644 Eastleigh Crescent, Langley, BC", "contact": "Tony \u00b7 778-598-5212", "access": "", "notes": "", "builder": "Whitetail"}, {"id": "j11", "name": "Florence", "address": "20145 Fraser Highway, Langley, BC", "contact": "Travis \u00b7 604-834-4245", "access": "", "notes": "", "builder": "Whitetail"}, {"id": "j12", "name": "KKAP", "address": "44810 Oakridge Road, Chilliwack, BC V2P 0K5", "contact": "Dan \u00b7 604-703-6661", "access": "", "notes": "", "builder": "Westbow"}, {"id": "j14", "name": "Andmar", "address": "46187\u201346195 Thomas Road, Sardis (Chilliwack), BC", "contact": "Brandon \u00b7 604-345-2120", "access": "", "notes": "", "builder": "Tribrink"}, {"id": "j15", "name": "Baycrest", "address": "3546 Monson Crescent, Coquitlam, BC", "contact": "Rod \u00b7 604-720-2782", "access": "", "notes": "", "builder": "Infinity"}, {"id": "j16", "name": "Horn Street", "address": "2930 Horn Street, Abbotsford, BC", "contact": "Stan \u00b7 604-968-7741", "access": "", "notes": "", "builder": "Vanmar"}, {"id": "j17", "name": "Edge", "address": "9559 134A Street, Surrey, BC", "contact": "Kyle \u00b7 778-887-5370", "access": "", "notes": "", "builder": "Adera"}, {"id": "j18", "name": "Latimer", "address": "20088 86 Ave, Langley Twp, BC V2Y 2B9", "contact": "Aiden \u00b7 604-562-7124", "access": "", "notes": "", "builder": "Vesta"}, {"id": "j19", "name": "Terra Gardens", "address": "15258 102A Avenue, Surrey, BC", "contact": "", "access": "", "notes": "", "builder": "CPM"}, {"id": "jruelf0v", "name": "Little Mountain", "builder": "Karvin", "address": "47250\u201347280 Valerie Place, Chilliwack, BC V2P 0K4", "contact": "Josiah \u00b7 604-997-3605", "access": "", "notes": ""}, {"id": "jbqsdl9h", "name": "Rivercrest", "builder": "Black Maple", "address": "20147 52 Ave, Langley, BC V3A 6R7", "contact": "Derek \u00b7 778-347-3511", "access": "", "notes": ""}, {"id": "jyl4e1cv", "name": "Firehall", "builder": "Caliber", "address": "20230 72B Avenue, Langley, BC", "contact": "Miciah \u00b7 604-309-4745", "access": "", "notes": ""}, {"id": "jw92jifv", "name": "Greystone", "builder": "Caliber", "address": "1918 Harbour Street, Port Coquitlam, BC", "contact": "Matt \u00b7 672-985-0070", "access": "", "notes": ""}, {"id": "j14hdp9l", "name": "Alder Inn", "builder": "Caliber", "address": "27214 Fraser Hwy, Langley, BC", "contact": "", "access": "", "notes": ""}, {"id": "jw0cobz4", "name": "Matsqui", "builder": "Caliber", "address": "33495 & 33509 Matsqui Way, Abbotsford, BC", "contact": "", "access": "", "notes": ""}, {"id": "jayd63jp", "name": "Larner Landing", "builder": "Black Maple", "address": "13757 108 Ave, Surrey, BC", "contact": "", "access": "", "notes": ""}, {"id": "jsurrvcv", "name": "Emrose", "builder": "Stonepeak", "address": "9563 Woodbine Street, Chilliwack, BC", "contact": "", "access": "", "notes": ""}, {"id": "j1tx3gih", "name": "Acres Row", "builder": "Wesmont", "address": "18588 75 Avenue, Surrey, BC", "contact": "Joel \u00b7 778-809-3304", "access": "", "notes": ""}, {"id": "jeufenuv", "name": "53A", "builder": "RKDI", "address": "20142 53A Ave, Langley, BC", "contact": "Joel \u00b7 778-242-2795", "access": "", "notes": ""}], "days": {}, "weeks": {}};
 
+function pushSubs_() { try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('pushSubs') || '[]'); } catch (e) { return []; } }
+function savePushSubs_(subs) { PropertiesService.getScriptProperties().setProperty('pushSubs', JSON.stringify(subs.slice(-60))); }
+// Run once from the editor after adding push: asks Google for permission to send to the phones' push services.
+function authorizePush() { UrlFetchApp.fetch('https://www.google.com', { muteHttpExceptions: true }); Logger.log('push ready, ' + pushSubs_().length + ' phones'); }
+
 function doGet(e) {
   const action = (e && e.parameter && e.parameter.action) || 'board';
   try {
     if (action === 'board') return json_({ ok: true, state: boardWithCalendar_() });
     if (action === 'ping') return json_({ ok: true });
+    if (action === 'vapid') return json_({ ok: true, key: PropertiesService.getScriptProperties().getProperty('vapidPublic') || '' });
     return json_({ ok: false, error: 'unknown action' });
   } catch (err) {
     return json_({ ok: false, error: String(err && err.message || err) });
@@ -45,6 +51,37 @@ function doPost(e) {
   try { body = JSON.parse(e.postData.contents || '{}'); } catch (x) { return json_({ ok: false, error: 'bad request' }); }
   try {
     if (body.action === 'checkPin') return json_({ ok: String(body.pin) === String(ADMIN_PIN) });
+    // ---- push notifications (phones that turned them on; manager sends) ----
+    if (body.action === 'subscribe') return withLock_(() => {
+      const sub = body.sub || {}, k = sub.keys || {};
+      if (!/^https:\/\//.test(String(sub.endpoint || '')) || !k.p256dh || !k.auth) return json_({ ok: false, error: 'bad subscription' });
+      const subs = pushSubs_().filter(x => x.endpoint !== sub.endpoint);
+      subs.push({ endpoint: String(sub.endpoint), keys: { p256dh: String(k.p256dh), auth: String(k.auth) }, name: String(body.name || '').slice(0, 40), at: Date.now() });
+      savePushSubs_(subs); return json_({ ok: true });
+    });
+    if (body.action === 'unsubscribe') return withLock_(() => { savePushSubs_(pushSubs_().filter(x => x.endpoint !== String(body.endpoint || ''))); return json_({ ok: true }); });
+    if (body.action === 'pushInfo') {
+      if (String(body.pin) !== String(ADMIN_PIN)) return json_({ ok: false, error: 'wrong pin' });
+      const pr = PropertiesService.getScriptProperties();
+      return json_({ ok: true, subs: pushSubs_(), vapidPublic: pr.getProperty('vapidPublic') || '', vapidPrivate: pr.getProperty('vapidPrivate') || '' });
+    }
+    if (body.action === 'setVapid') {
+      if (String(body.pin) !== String(ADMIN_PIN)) return json_({ ok: false, error: 'wrong pin' });
+      const pr = PropertiesService.getScriptProperties();
+      if (pr.getProperty('vapidPublic') && !body.replace) return json_({ ok: false, error: 'keys already set' });
+      pr.setProperties({ vapidPublic: String(body.publicKey || ''), vapidPrivate: JSON.stringify(body.privateJwk || {}) });
+      return json_({ ok: true });
+    }
+    if (body.action === 'pushSend') {
+      // the manager's app builds each signed + encrypted message; this just delivers them (push services don't allow browsers to post directly)
+      if (String(body.pin) !== String(ADMIN_PIN)) return json_({ ok: false, error: 'wrong pin' });
+      const msgs = (body.msgs || []).filter(m => /^https:\/\//.test(String(m.endpoint || ''))).slice(0, 100);
+      const res = msgs.length ? UrlFetchApp.fetchAll(msgs.map(m => ({ url: m.endpoint, method: 'post', muteHttpExceptions: true, contentType: 'application/octet-stream', headers: m.headers || {}, payload: Utilities.base64Decode(m.body || '') }))) : [];
+      const codes = res.map(r => r.getResponseCode());
+      const dead = msgs.filter((m, i) => codes[i] === 404 || codes[i] === 410).map(m => m.endpoint);
+      if (dead.length) withLock_(() => savePushSubs_(pushSubs_().filter(x => dead.indexOf(x.endpoint) < 0)));
+      return json_({ ok: true, codes: codes, sent: codes.filter(c => c >= 200 && c < 300).length, removed: dead.length });
+    }
     if (body.action === 'requestOff') return withLock_(() => {
       const r = body.request || {};
       const name = String(r.name || '').trim().slice(0, 60), from = String(r.from || ''), to = String(r.to || r.from || '');
