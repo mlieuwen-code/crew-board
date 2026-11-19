@@ -317,7 +317,7 @@ function load(quiet){
     if(!res||!res.ok)throw new Error(res&&res.error||"error");
     if(typingNote()&&loaded)return;
     if(!modalEl.hidden&&loaded){render();return;}
-    state=res.state;loaded=true;loadErr="";if(editing())loadOffList();
+    state=res.state;base=clone(state);loaded=true;loadErr="";if(editing())loadOffList();
     try{localStorage.setItem("cjb-cache",JSON.stringify(state));}catch(e){}
     render();
   }).catch(function(e){loading=false;loadErr=navigator.onLine===false?"offline":"error";render();});
@@ -325,15 +325,50 @@ function load(quiet){
 function post(body){
   return fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)}).then(function(r){return r.json();});
 }
+/* ---- merge before saving: keep changes made elsewhere (another phone, Claude) since this copy was loaded ---- */
+var base=null;
+function clone(o){return o==null?o:JSON.parse(JSON.stringify(o));}
+function same(a,b){return JSON.stringify(a)===JSON.stringify(b);}
+function hasIds(a){return Array.isArray(a)&&a.every(function(x){return x&&typeof x==="object"&&x.id!=null;});}
+function ids(a){return (a||[]).map(function(x){return x.id;});}
+function m3(b,l,r){
+  if(same(l,b))return r;if(same(r,b)||same(l,r))return l;
+  if(Array.isArray(l)&&Array.isArray(r)){
+    if(!(hasIds(l)&&hasIds(r)&&(b==null||hasIds(b))))return l;
+    var B={},L={},R={};(b||[]).forEach(function(x){B[x.id]=x;});l.forEach(function(x){L[x.id]=x;});r.forEach(function(x){R[x.id]=x;});
+    var order=same(ids(l),ids(b))?ids(r).concat(ids(l)):ids(l).concat(ids(r)),seen={},out=[];
+    order.forEach(function(id){if(seen[id])return;seen[id]=1;var inB=id in B,inL=id in L,inR=id in R;
+      if(inL&&inR)out.push(m3(B[id],L[id],R[id]));
+      else if(inL){if(!(inB&&same(L[id],B[id])))out.push(L[id]);}
+      else if(inR&&!inB)out.push(R[id]);});
+    return out;
+  }
+  if(l&&r&&typeof l==="object"&&typeof r==="object"&&!Array.isArray(l)&&!Array.isArray(r)){
+    var o={},k,bb=(b&&typeof b==="object")?b:{};
+    for(k in l)o[k]=1;for(k in r)o[k]=1;for(k in bb)o[k]=1;
+    var res={};Object.keys(o).forEach(function(k){var v=m3(bb[k],l[k],r[k]);if(v!==undefined)res[k]=v;});return res;
+  }
+  return l;
+}
+function latestMerged(){
+  if(!base)return Promise.resolve(state);
+  return fetch(API_URL+"?action=board&t="+Date.now()).then(function(r){return r.json();}).then(function(res){
+    if(!res||!res.ok||!res.state)return state;
+    var m=m3(base,state,res.state);
+    ["calAway","calError","calSync","timeOff"].forEach(function(k){if(k in res.state)m[k]=res.state[k];});
+    return m;
+  }).catch(function(){return state;});
+}
+function adopt(m){if(m!==state&&!same(m,state))state=m;}
 var saving=false;
 function save(msg){
   state.updatedAt=Date.now();render();
   try{localStorage.setItem("cjb-cache",JSON.stringify(state));}catch(e){}
   if(!apiReady()){toast("Not connected yet");return;}
   saving=true;toast("Saving…");
-  post({action:"save",pin:pin,state:state}).then(function(res){
+  latestMerged().then(function(m){adopt(m);return post({action:"save",pin:pin,state:state});}).then(function(res){
     saving=false;
-    if(res&&res.ok){state.updatedAt=res.updatedAt;toast(msg||"Saved — the crew can see it");render();}
+    if(res&&res.ok){state.updatedAt=res.updatedAt;base=clone(state);try{localStorage.setItem("cjb-cache",JSON.stringify(state));}catch(e){}toast(msg||"Saved — the crew can see it");render();}
     else if(res&&res.error==="wrong pin"){pin="";try{localStorage.removeItem("cjb-pin");}catch(e){}editMode=false;render();toast("PIN changed — enter it again");}
     else toast("Couldn't save — try again");
   }).catch(function(){saving=false;toast("Couldn't save — check your signal and try again");});
@@ -344,7 +379,7 @@ function askPin(){
 }
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!typingNote())load(true);});
 setInterval(function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!editing())load(true);},5*60*1000);
-var APP_VERSION="2026.11.19-3";
+var APP_VERSION="2026.11.19-4";
 /* Check for updates: get the newest app from GitHub; reload if it changed, otherwise refresh the schedule */
 function checkUpdates(btn){
   if(btn){btn.disabled=true;btn.textContent="Checking…";}
@@ -860,7 +895,7 @@ function noteSave(el){
   var st=document.querySelector('[data-inst="'+i+'"]');if(st)st.textContent="Saving…";
   state.updatedAt=Date.now();try{localStorage.setItem("cjb-cache",JSON.stringify(state));}catch(e){}
   saving=true;
-  post({action:"save",pin:pin,state:state}).then(function(r){saving=false;var s2=document.querySelector('[data-inst="'+i+'"]');if(s2)s2.textContent=(r&&r.ok)?"✓ Saved — crew can see it":"Couldn't save — tap away to try again";if(r&&r.ok)state.updatedAt=r.updatedAt;}).catch(function(){saving=false;var s2=document.querySelector('[data-inst="'+i+'"]');if(s2)s2.textContent="No signal — will try again when you tap away";d.items[i].notes=(d.items[i].notes||"")+"";});
+  latestMerged().then(function(m){adopt(m);return post({action:"save",pin:pin,state:state});}).then(function(r){saving=false;var s2=document.querySelector('[data-inst="'+i+'"]');if(s2)s2.textContent=(r&&r.ok)?"✓ Saved — crew can see it":"Couldn't save — tap away to try again";if(r&&r.ok){state.updatedAt=r.updatedAt;base=clone(state);}}).catch(function(){saving=false;var s2=document.querySelector('[data-inst="'+i+'"]');if(s2)s2.textContent="No signal — will try again when you tap away";d.items[i].notes=(d.items[i].notes||"")+"";});
 }
 document.addEventListener("input",function(e){if(e.target.classList&&e.target.classList.contains("inote")){var el=e.target;var st=document.querySelector('[data-inst="'+el.getAttribute("data-inote")+'"]');if(st)st.textContent="…";clearTimeout(noteTimer);noteTimer=setTimeout(function(){noteSave(el);},2000);}});
 document.addEventListener("focusout",function(e){if(e.target.classList&&e.target.classList.contains("inote")){clearTimeout(noteTimer);noteSave(e.target);}});
