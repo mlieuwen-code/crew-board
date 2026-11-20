@@ -177,7 +177,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
 .brand>div:last-child{border-left:2px solid rgba(255,255,255,.18);padding-left:16px}
 .top .brand b{font-family:'Lexend Exa',var(--font);font-weight:800;text-transform:uppercase;font-size:20px;letter-spacing:.01em;margin-top:3px;background:linear-gradient(180deg,#F2F6FA 15%,#9FB6D3 95%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;padding-bottom:2px}
 .wx{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 14px;margin:-4px 0 14px;font-size:15px;color:var(--ink)}
-.wx .wxi{font-size:26px;line-height:1}.wx b{font-weight:600}.wx .wxt{font-size:20px;font-weight:600}.wx .wxm{color:var(--muted)}.wx .wxw{color:#B54708;font-weight:600}
+.wx .wxl{flex-basis:100%;font-size:13px;font-weight:500;color:var(--muted);opacity:.85;margin-bottom:-6px}.wx .wxi{font-size:26px;line-height:1}.wx b{font-weight:600}.wx .wxt{font-size:20px;font-weight:600}.wx .wxm{color:var(--muted)}.wx .wxw{color:#B54708;font-weight:600}
 .wxs{font-size:13px;color:var(--muted);padding:0 6px;margin-top:-4px}.wxs b{color:var(--ink);font-weight:600}
 /* ---- themes (picked per phone; saved on the device) ---- */
 html[data-theme=night]{--bg:#0B1722;--card:#12212F;--ink:#E7EEF5;--muted:#93A5B8;--line:#22374A;--field:#0F1C28;--chip:#1A2E40;--chip2:#14283A;
@@ -416,7 +416,7 @@ function askPin(){
 }
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"){loadWx();if(modalEl.hidden&&!saving&&!typingNote())load(true);}});
 setInterval(function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!editing())load(true);},5*60*1000);
-var APP_VERSION="2026.11.19-7";
+var APP_VERSION="2026.11.19-8";
 /* Check for updates: get the newest app from GitHub; reload if it changed, otherwise refresh the schedule */
 function checkUpdates(btn){
   if(btn){btn.disabled=true;btn.textContent="Checking…";}
@@ -503,7 +503,8 @@ function wxLine(k){
   var bits=[];
   if(w.pop!=null)bits.push('<span class="wxm">'+w.pop+'% '+(w.sn>0.2?'snow':'rain')+(w.mm>=1?' · '+(w.sn>0.2?Math.round(w.sn)+' cm':Math.round(w.mm)+' mm'):'')+'</span>');
   if(w.g!=null)bits.push('<span class="'+(w.g>=50?'wxw':'wxm')+'">'+(w.g>=50?'⚠️ ':'')+'Gusts '+w.g+' km/h</span>');
-  return '<div class="wx"><span class="wxi">'+w.i+'</span><span class="wxt">'+w.hi+'° <span class="wxm">/ '+w.lo+'°</span></span><b>'+w.t+'</b>'+bits.join('')+'<span class="wxm" style="margin-left:auto;font-size:13px">'+WX_PLACE+' area</span></div>';
+  var lbl=k===realToday()?"Today's weather":k===addDays(realToday(),1)?"Tomorrow's weather":DN[parse(k).getDay()]+"'s weather";
+  return '<div class="wx"><span class="wxl">'+lbl+'</span><span class="wxi">'+w.i+'</span><span class="wxt">'+w.hi+'° <span class="wxm">/ '+w.lo+'°</span></span><b>'+w.t+'</b>'+bits.join('')+'<span class="wxm" style="margin-left:auto;font-size:13px">'+WX_PLACE+' area</span></div>';
 }
 function wxShort(k){var w=wxOf(k);if(!w)return "";return '<div class="wxs">'+w.i+' <b>'+w.hi+'°/'+w.lo+'°</b>'+(w.pop!=null?' · '+w.pop+'%':'')+(w.g>=50?' · ⚠️ '+w.g+' km/h':'')+'</div>';}
 function renderDay(){
