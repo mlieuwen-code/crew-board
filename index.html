@@ -176,6 +176,9 @@ input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
 .brand{gap:16px}
 .brand>div:last-child{border-left:2px solid rgba(255,255,255,.18);padding-left:16px}
 .top .brand b{font-family:'Lexend Exa',var(--font);font-weight:800;text-transform:uppercase;font-size:20px;letter-spacing:.01em;margin-top:3px;background:linear-gradient(180deg,#F2F6FA 15%,#9FB6D3 95%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;padding-bottom:2px}
+.wx{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 14px;margin:-4px 0 14px;font-size:15px;color:var(--ink)}
+.wx .wxi{font-size:26px;line-height:1}.wx b{font-weight:600}.wx .wxt{font-size:20px;font-weight:600}.wx .wxm{color:var(--muted)}.wx .wxw{color:#B54708;font-weight:600}
+.wxs{font-size:13px;color:var(--muted);padding:0 6px;margin-top:-4px}.wxs b{color:var(--ink);font-weight:600}
 /* ---- phone ---- */
 @media(max-width:560px){
   body{font-size:17px}
@@ -377,9 +380,9 @@ function askPin(){
   openModal('<h2>Manager PIN</h2><div><label>Enter your PIN to edit the board</label><input id="pin-in" type="password" inputmode="numeric" autocomplete="off"></div><div class="mrow"><button class="btn ghost" data-a="close">Cancel</button><button class="btn pri" data-a="checkPin">Unlock</button></div>');
   setTimeout(function(){var el=document.getElementById("pin-in");if(el)el.focus();},50);
 }
-document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!typingNote())load(true);});
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"){loadWx();if(modalEl.hidden&&!saving&&!typingNote())load(true);}});
 setInterval(function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!editing())load(true);},5*60*1000);
-var APP_VERSION="2026.11.19-4";
+var APP_VERSION="2026.11.19-5";
 /* Check for updates: get the newest app from GitHub; reload if it changed, otherwise refresh the schedule */
 function checkUpdates(btn){
   if(btn){btn.disabled=true;btn.textContent="Checking…";}
@@ -427,6 +430,29 @@ function render(){
 }
 function tab(v,n){return '<button class="tab'+(view===v?' on':'')+'" data-a="go" data-v="'+v+'">'+n+'</button>';}
 
+/* ---------- weather (Open-Meteo, free, no key) — one forecast for the area ---------- */
+var WX_LAT=49.05,WX_LON=-122.31,WX_PLACE="Abbotsford",WX={},wxAt=0;
+try{var wc=JSON.parse(localStorage.getItem("cjb-wx")||"null");if(wc&&wc.d){WX=wc.d;wxAt=wc.at||0;}}catch(e){}
+var WMO={0:["☀️","Sunny"],1:["🌤️","Mostly sunny"],2:["⛅","Partly cloudy"],3:["☁️","Cloudy"],45:["🌫️","Fog"],48:["🌫️","Freezing fog"],51:["🌦️","Light drizzle"],53:["🌦️","Drizzle"],55:["🌧️","Heavy drizzle"],56:["🌧️","Freezing drizzle"],57:["🌧️","Freezing drizzle"],61:["🌧️","Light rain"],63:["🌧️","Rain"],65:["🌧️","Heavy rain"],66:["🧊","Freezing rain"],67:["🧊","Freezing rain"],71:["🌨️","Light snow"],73:["🌨️","Snow"],75:["❄️","Heavy snow"],77:["🌨️","Snow grains"],80:["🌦️","Showers"],81:["🌧️","Showers"],82:["⛈️","Heavy showers"],85:["🌨️","Snow showers"],86:["❄️","Heavy snow showers"],95:["⛈️","Thunderstorms"],96:["⛈️","Thunderstorms, hail"],99:["⛈️","Thunderstorms, hail"]};
+function loadWx(force){
+  if(!force&&Date.now()-wxAt<60*60*1000&&Object.keys(WX).length)return;
+  fetch("https://api.open-meteo.com/v1/forecast?latitude="+WX_LAT+"&longitude="+WX_LON+"&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,snowfall_sum,wind_gusts_10m_max&timezone=America%2FVancouver&forecast_days=16")
+  .then(function(r){return r.json();}).then(function(j){
+    var dd=j&&j.daily;if(!dd||!dd.time)return;var o={};
+    dd.time.forEach(function(k,i){o[k]={c:dd.weather_code[i],hi:dd.temperature_2m_max[i],lo:dd.temperature_2m_min[i],pop:dd.precipitation_probability_max[i],mm:dd.precipitation_sum[i],sn:dd.snowfall_sum[i],g:dd.wind_gusts_10m_max[i]};});
+    WX=o;wxAt=Date.now();try{localStorage.setItem("cjb-wx",JSON.stringify({at:wxAt,d:WX}));}catch(e){}
+    if(!typingNote()&&modalEl.hidden)render();
+  }).catch(function(){});
+}
+function wxOf(k){var w=WX[k];if(!w||k<realToday())return null;var m=WMO[w.c]||["🌡️",""];return {i:m[0],t:m[1],hi:Math.round(w.hi),lo:Math.round(w.lo),pop:w.pop==null?null:Math.round(w.pop),mm:w.mm,sn:w.sn,g:w.g==null?null:Math.round(w.g)};}
+function wxLine(k){
+  var w=wxOf(k);if(!w)return "";
+  var bits=[];
+  if(w.pop!=null)bits.push('<span class="wxm">'+w.pop+'% '+(w.sn>0.2?'snow':'rain')+(w.mm>=1?' · '+(w.sn>0.2?Math.round(w.sn)+' cm':Math.round(w.mm)+' mm'):'')+'</span>');
+  if(w.g!=null)bits.push('<span class="'+(w.g>=50?'wxw':'wxm')+'">'+(w.g>=50?'⚠️ ':'')+'Gusts '+w.g+' km/h</span>');
+  return '<div class="wx"><span class="wxi">'+w.i+'</span><span class="wxt">'+w.hi+'° <span class="wxm">/ '+w.lo+'°</span></span><b>'+w.t+'</b>'+bits.join('')+'<span class="wxm" style="margin-left:auto;font-size:13px">'+WX_PLACE+' area</span></div>';
+}
+function wxShort(k){var w=wxOf(k);if(!w)return "";return '<div class="wxs">'+w.i+' <b>'+w.hi+'°/'+w.lo+'°</b>'+(w.pop!=null?' · '+w.pop+'%':'')+(w.g>=50?' · ⚠️ '+w.g+' km/h':'')+'</div>';}
 function renderDay(){
   var d=day(cur),h='';
   h+='<div class="nav"><button class="round" data-a="prevDay" aria-label="Previous day"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><h1>'+(cur===realToday()?'Today':longDate(cur).split(",")[0])+'<small>'+longDate(cur)+' · '+d.items.length+' job'+(d.items.length===1?'':'s')+'</small></h1><button class="round" data-a="nextDay" aria-label="Next day"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>';
@@ -435,6 +461,7 @@ function renderDay(){
   if(editing()&&d.items.length>1)h+='<button class="btn sm'+(reorder?' pri':'')+'" data-a="reorder">'+(reorder?'✓ Done reordering':'⇅ Reorder')+'</button>';
   if(d.items.length>1&&!reorder)h+='<button class="btn sm" data-a="foldAll">'+(foldAllState()?'Expand all':'Collapse all')+'</button>';
   h+=(editing()?'<button class="btn sm" data-a="copyDay">Copy as text</button>':'')+'</div>';
+  h+=wxLine(cur);
   if(editing()){
     h+='<div class="editbar"><span>Editing '+longDate(cur)+'</span><button class="btn sm pri" data-a="addItem">+ Add job</button><button class="btn sm" data-a="editDayNote">'+(d.note?'Edit':'Add')+' day note</button>'+(d.items.length?'<button class="btn sm" data-a="copyDayTo">Copy whole day to…</button>':'')+'</div>';
   }
@@ -496,7 +523,7 @@ function renderWeek(){
   for(var i=0;i<5;i++){
     var k=addDays(m,i),d=day(k);
     var wf=!!FOLD[k+"|W"],nsites=d.items.length;
-    h+='<div class="wday'+(k===realToday()?' today':'')+(wf?' wfolded':'')+'"><div class="wh"><button class="whead" data-a="openDay" data-k="'+k+'">'+DN[parse(k).getDay()].slice(0,3)+' <small>'+shortDate(k)+'</small></button><button class="wfold" data-a="wfold" data-k="'+k+'" aria-label="Collapse or expand '+DN[parse(k).getDay()]+'" aria-expanded="'+(!wf)+'"><span class="wcount">'+(nsites?nsites+' job'+(nsites===1?'':'s'):'')+'</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>'+(awayOn(k).length?'<div class="wempty wav">🏖 '+awayOn(k).map(esc).join(", ")+'</div>':'');
+    h+='<div class="wday'+(k===realToday()?' today':'')+(wf?' wfolded':'')+'"><div class="wh"><button class="whead" data-a="openDay" data-k="'+k+'">'+DN[parse(k).getDay()].slice(0,3)+' <small>'+shortDate(k)+'</small></button><button class="wfold" data-a="wfold" data-k="'+k+'" aria-label="Collapse or expand '+DN[parse(k).getDay()]+'" aria-expanded="'+(!wf)+'"><span class="wcount">'+(nsites?nsites+' job'+(nsites===1?'':'s'):'')+'</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>'+wxShort(k)+(awayOn(k).length?'<div class="wempty wav">🏖 '+awayOn(k).map(esc).join(", ")+'</div>':'');
     if(d.note)h+='<div class="wempty" style="color:var(--deep)">'+esc(d.note.split("\n")[0])+'</div>';
     if(!d.items.length)h+='<div class="wempty">—</div>';
     d.items.forEach(function(it){
@@ -915,7 +942,7 @@ function typingNote(){var a=document.activeElement;return !!(a&&a.classList&&a.c
 var tx=null,ty=null;
 document.addEventListener("touchstart",function(e){if(view!=="day"||!modalEl.hidden||e.touches.length!==1){tx=null;return;}tx=e.touches[0].clientX;ty=e.touches[0].clientY;},{passive:true});
 document.addEventListener("touchend",function(e){if(tx===null)return;var dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;tx=null;if(Math.abs(dx)>70&&Math.abs(dx)>Math.abs(dy)*1.8){go("day",addWorkdays(cur,dx<0?1:-1));}},{passive:true});
-readHash();render();load();
+readHash();render();load();loadWx();
 })();
 </script>
 </body></html>
