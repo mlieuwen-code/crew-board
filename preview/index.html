@@ -6,8 +6,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Crew Board">
 
-<link rel="icon" href="../icon-192.png">
-<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png?v=3">
+<link rel="icon" href="../ra-icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="../ra-icon-180.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend+Exa:wght@700;800&family=Lexend:wght@400;500;600;700;800;900&display=swap">
 <style id="app-style">
 :root{
@@ -176,6 +176,9 @@ input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
 .brand{gap:16px}
 .brand>div:last-child{border-left:2px solid rgba(255,255,255,.18);padding-left:16px}
 .top .brand b{font-family:'Lexend Exa',var(--font);font-weight:800;text-transform:uppercase;font-size:20px;letter-spacing:.01em;margin-top:3px;background:linear-gradient(180deg,#F2F6FA 15%,#9FB6D3 95%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;padding-bottom:2px}
+.wx{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 14px;margin:-4px 0 14px;font-size:15px;color:var(--ink)}
+.wx .wxi{font-size:26px;line-height:1}.wx b{font-weight:600}.wx .wxt{font-size:20px;font-weight:600}.wx .wxm{color:var(--muted)}.wx .wxw{color:#B54708;font-weight:600}
+.wxs{font-size:13px;color:var(--muted);padding:0 6px;margin-top:-4px}.wxs b{color:var(--ink);font-weight:600}
 /* ---- phone ---- */
 @media(max-width:560px){
   body{font-size:17px}
@@ -317,7 +320,7 @@ function load(quiet){
     if(!res||!res.ok)throw new Error(res&&res.error||"error");
     if(typingNote()&&loaded)return;
     if(!modalEl.hidden&&loaded){render();return;}
-    state=res.state;loaded=true;loadErr="";if(editing())loadOffList();
+    state=res.state;base=clone(state);loaded=true;loadErr="";if(editing())loadOffList();
     try{localStorage.setItem("cjb-cache",JSON.stringify(state));}catch(e){}
     render();
   }).catch(function(e){loading=false;loadErr=navigator.onLine===false?"offline":"error";render();});
@@ -325,15 +328,50 @@ function load(quiet){
 function post(body){
   return fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)}).then(function(r){return r.json();});
 }
+/* ---- merge before saving: keep changes made elsewhere (another phone, Claude) since this copy was loaded ---- */
+var base=null;
+function clone(o){return o==null?o:JSON.parse(JSON.stringify(o));}
+function same(a,b){return JSON.stringify(a)===JSON.stringify(b);}
+function hasIds(a){return Array.isArray(a)&&a.every(function(x){return x&&typeof x==="object"&&x.id!=null;});}
+function ids(a){return (a||[]).map(function(x){return x.id;});}
+function m3(b,l,r){
+  if(same(l,b))return r;if(same(r,b)||same(l,r))return l;
+  if(Array.isArray(l)&&Array.isArray(r)){
+    if(!(hasIds(l)&&hasIds(r)&&(b==null||hasIds(b))))return l;
+    var B={},L={},R={};(b||[]).forEach(function(x){B[x.id]=x;});l.forEach(function(x){L[x.id]=x;});r.forEach(function(x){R[x.id]=x;});
+    var order=same(ids(l),ids(b))?ids(r).concat(ids(l)):ids(l).concat(ids(r)),seen={},out=[];
+    order.forEach(function(id){if(seen[id])return;seen[id]=1;var inB=id in B,inL=id in L,inR=id in R;
+      if(inL&&inR)out.push(m3(B[id],L[id],R[id]));
+      else if(inL){if(!(inB&&same(L[id],B[id])))out.push(L[id]);}
+      else if(inR&&!inB)out.push(R[id]);});
+    return out;
+  }
+  if(l&&r&&typeof l==="object"&&typeof r==="object"&&!Array.isArray(l)&&!Array.isArray(r)){
+    var o={},k,bb=(b&&typeof b==="object")?b:{};
+    for(k in l)o[k]=1;for(k in r)o[k]=1;for(k in bb)o[k]=1;
+    var res={};Object.keys(o).forEach(function(k){var v=m3(bb[k],l[k],r[k]);if(v!==undefined)res[k]=v;});return res;
+  }
+  return l;
+}
+function latestMerged(){
+  if(!base)return Promise.resolve(state);
+  return fetch(API_URL+"?action=board&t="+Date.now()).then(function(r){return r.json();}).then(function(res){
+    if(!res||!res.ok||!res.state)return state;
+    var m=m3(base,state,res.state);
+    ["calAway","calError","calSync","timeOff"].forEach(function(k){if(k in res.state)m[k]=res.state[k];});
+    return m;
+  }).catch(function(){return state;});
+}
+function adopt(m){if(m!==state&&!same(m,state))state=m;}
 var saving=false;
 function save(msg){
   state.updatedAt=Date.now();render();
   try{localStorage.setItem("cjb-cache",JSON.stringify(state));}catch(e){}
   if(!apiReady()){toast("Not connected yet");return;}
   saving=true;toast("Saving…");
-  post({action:"save",pin:pin,state:state}).then(function(res){
+  latestMerged().then(function(m){adopt(m);return post({action:"save",pin:pin,state:state});}).then(function(res){
     saving=false;
-    if(res&&res.ok){state.updatedAt=res.updatedAt;toast(msg||"Saved — the crew can see it");render();}
+    if(res&&res.ok){state.updatedAt=res.updatedAt;base=clone(state);try{localStorage.setItem("cjb-cache",JSON.stringify(state));}catch(e){}toast(msg||"Saved — the crew can see it");render();}
     else if(res&&res.error==="wrong pin"){pin="";try{localStorage.removeItem("cjb-pin");}catch(e){}editMode=false;render();toast("PIN changed — enter it again");}
     else toast("Couldn't save — try again");
   }).catch(function(){saving=false;toast("Couldn't save — check your signal and try again");});
@@ -342,9 +380,9 @@ function askPin(){
   openModal('<h2>Manager PIN</h2><div><label>Enter your PIN to edit the board</label><input id="pin-in" type="password" inputmode="numeric" autocomplete="off"></div><div class="mrow"><button class="btn ghost" data-a="close">Cancel</button><button class="btn pri" data-a="checkPin">Unlock</button></div>');
   setTimeout(function(){var el=document.getElementById("pin-in");if(el)el.focus();},50);
 }
-document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!typingNote())load(true);});
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"){loadWx();if(modalEl.hidden&&!saving&&!typingNote())load(true);}});
 setInterval(function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!editing())load(true);},5*60*1000);
-var APP_VERSION="2026.11.19-1";
+var APP_VERSION="2026.11.19-4";
 /* Check for updates: get the newest app from GitHub; reload if it changed, otherwise refresh the schedule */
 function checkUpdates(btn){
   if(btn){btn.disabled=true;btn.textContent="Checking…";}
@@ -385,18 +423,45 @@ function render(){
   if(view==="day")h+=renderDay();else if(view==="week")h+=renderWeek();else if(view==="jobs")h+=renderJobs();else if(view==="off")h+=renderOff();else if(view==="forms")h+=renderForms();else h+=renderCrew();
   h+='<div class="legend">'+TYPES.map(function(t){return '<span><i style="background:'+t.c+'"></i>'+t.n+'</span>';}).join("")+'</div>';
   if(state.updatedAt)h+='<div class="ro">Last updated '+new Date(state.updatedAt).toLocaleString(undefined,{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})+'</div>';
+  h+='<div class="updrow" id="pushRow"></div>';
   h+='<div class="updrow"><button class="btn sm" data-a="checkUpd">Check for updates</button><span>App version '+APP_VERSION+'</span></div>';
   root.innerHTML=h;
+  setTimeout(pushUI,0);
 }
 function tab(v,n){return '<button class="tab'+(view===v?' on':'')+'" data-a="go" data-v="'+v+'">'+n+'</button>';}
 
+/* ---------- weather (Open-Meteo, free, no key) — one forecast for the area ---------- */
+var WX_LAT=49.05,WX_LON=-122.31,WX_PLACE="Abbotsford",WX={},wxAt=0;
+try{var wc=JSON.parse(localStorage.getItem("cjb-wx")||"null");if(wc&&wc.d){WX=wc.d;wxAt=wc.at||0;}}catch(e){}
+var WMO={0:["☀️","Sunny"],1:["🌤️","Mostly sunny"],2:["⛅","Partly cloudy"],3:["☁️","Cloudy"],45:["🌫️","Fog"],48:["🌫️","Freezing fog"],51:["🌦️","Light drizzle"],53:["🌦️","Drizzle"],55:["🌧️","Heavy drizzle"],56:["🌧️","Freezing drizzle"],57:["🌧️","Freezing drizzle"],61:["🌧️","Light rain"],63:["🌧️","Rain"],65:["🌧️","Heavy rain"],66:["🧊","Freezing rain"],67:["🧊","Freezing rain"],71:["🌨️","Light snow"],73:["🌨️","Snow"],75:["❄️","Heavy snow"],77:["🌨️","Snow grains"],80:["🌦️","Showers"],81:["🌧️","Showers"],82:["⛈️","Heavy showers"],85:["🌨️","Snow showers"],86:["❄️","Heavy snow showers"],95:["⛈️","Thunderstorms"],96:["⛈️","Thunderstorms, hail"],99:["⛈️","Thunderstorms, hail"]};
+function loadWx(force){
+  if(!force&&Date.now()-wxAt<60*60*1000&&Object.keys(WX).length)return;
+  fetch("https://api.open-meteo.com/v1/forecast?latitude="+WX_LAT+"&longitude="+WX_LON+"&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,snowfall_sum,wind_gusts_10m_max&timezone=America%2FVancouver&forecast_days=16")
+  .then(function(r){return r.json();}).then(function(j){
+    var dd=j&&j.daily;if(!dd||!dd.time)return;var o={};
+    dd.time.forEach(function(k,i){o[k]={c:dd.weather_code[i],hi:dd.temperature_2m_max[i],lo:dd.temperature_2m_min[i],pop:dd.precipitation_probability_max[i],mm:dd.precipitation_sum[i],sn:dd.snowfall_sum[i],g:dd.wind_gusts_10m_max[i]};});
+    WX=o;wxAt=Date.now();try{localStorage.setItem("cjb-wx",JSON.stringify({at:wxAt,d:WX}));}catch(e){}
+    if(!typingNote()&&modalEl.hidden)render();
+  }).catch(function(){});
+}
+function wxOf(k){var w=WX[k];if(!w||k<realToday())return null;var m=WMO[w.c]||["🌡️",""];return {i:m[0],t:m[1],hi:Math.round(w.hi),lo:Math.round(w.lo),pop:w.pop==null?null:Math.round(w.pop),mm:w.mm,sn:w.sn,g:w.g==null?null:Math.round(w.g)};}
+function wxLine(k){
+  var w=wxOf(k);if(!w)return "";
+  var bits=[];
+  if(w.pop!=null)bits.push('<span class="wxm">'+w.pop+'% '+(w.sn>0.2?'snow':'rain')+(w.mm>=1?' · '+(w.sn>0.2?Math.round(w.sn)+' cm':Math.round(w.mm)+' mm'):'')+'</span>');
+  if(w.g!=null)bits.push('<span class="'+(w.g>=50?'wxw':'wxm')+'">'+(w.g>=50?'⚠️ ':'')+'Gusts '+w.g+' km/h</span>');
+  return '<div class="wx"><span class="wxi">'+w.i+'</span><span class="wxt">'+w.hi+'° <span class="wxm">/ '+w.lo+'°</span></span><b>'+w.t+'</b>'+bits.join('')+'<span class="wxm" style="margin-left:auto;font-size:13px">'+WX_PLACE+' area</span></div>';
+}
+function wxShort(k){var w=wxOf(k);if(!w)return "";return '<div class="wxs">'+w.i+' <b>'+w.hi+'°/'+w.lo+'°</b>'+(w.pop!=null?' · '+w.pop+'%':'')+(w.g>=50?' · ⚠️ '+w.g+' km/h':'')+'</div>';}
 function renderDay(){
   var d=day(cur),h='';
   h+='<div class="nav"><button class="round" data-a="prevDay" aria-label="Previous day"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><h1>'+(cur===realToday()?'Today':longDate(cur).split(",")[0])+'<small>'+longDate(cur)+' · '+d.items.length+' job'+(d.items.length===1?'':'s')+'</small></h1><button class="round" data-a="nextDay" aria-label="Next day"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>';
   if(cur!==todayKey())h+='<button class="btn sm" data-a="toToday">Today</button>';
+  if(editing())h+='<button class="btn sm" data-a="notify">📣 Notify crew</button>';
   if(editing()&&d.items.length>1)h+='<button class="btn sm'+(reorder?' pri':'')+'" data-a="reorder">'+(reorder?'✓ Done reordering':'⇅ Reorder')+'</button>';
   if(d.items.length>1&&!reorder)h+='<button class="btn sm" data-a="foldAll">'+(foldAllState()?'Expand all':'Collapse all')+'</button>';
   h+=(editing()?'<button class="btn sm" data-a="copyDay">Copy as text</button>':'')+'</div>';
+  h+=wxLine(cur);
   if(editing()){
     h+='<div class="editbar"><span>Editing '+longDate(cur)+'</span><button class="btn sm pri" data-a="addItem">+ Add job</button><button class="btn sm" data-a="editDayNote">'+(d.note?'Edit':'Add')+' day note</button>'+(d.items.length?'<button class="btn sm" data-a="copyDayTo">Copy whole day to…</button>':'')+'</div>';
   }
@@ -458,7 +523,7 @@ function renderWeek(){
   for(var i=0;i<5;i++){
     var k=addDays(m,i),d=day(k);
     var wf=!!FOLD[k+"|W"],nsites=d.items.length;
-    h+='<div class="wday'+(k===realToday()?' today':'')+(wf?' wfolded':'')+'"><div class="wh"><button class="whead" data-a="openDay" data-k="'+k+'">'+DN[parse(k).getDay()].slice(0,3)+' <small>'+shortDate(k)+'</small></button><button class="wfold" data-a="wfold" data-k="'+k+'" aria-label="Collapse or expand '+DN[parse(k).getDay()]+'" aria-expanded="'+(!wf)+'"><span class="wcount">'+(nsites?nsites+' job'+(nsites===1?'':'s'):'')+'</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>'+(awayOn(k).length?'<div class="wempty wav">🏖 '+awayOn(k).map(esc).join(", ")+'</div>':'');
+    h+='<div class="wday'+(k===realToday()?' today':'')+(wf?' wfolded':'')+'"><div class="wh"><button class="whead" data-a="openDay" data-k="'+k+'">'+DN[parse(k).getDay()].slice(0,3)+' <small>'+shortDate(k)+'</small></button><button class="wfold" data-a="wfold" data-k="'+k+'" aria-label="Collapse or expand '+DN[parse(k).getDay()]+'" aria-expanded="'+(!wf)+'"><span class="wcount">'+(nsites?nsites+' job'+(nsites===1?'':'s'):'')+'</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>'+wxShort(k)+(awayOn(k).length?'<div class="wempty wav">🏖 '+awayOn(k).map(esc).join(", ")+'</div>':'');
     if(d.note)h+='<div class="wempty" style="color:var(--deep)">'+esc(d.note.split("\n")[0])+'</div>';
     if(!d.items.length)h+='<div class="wempty">—</div>';
     d.items.forEach(function(it){
@@ -681,6 +746,92 @@ function openForm(i){
 }
 function closeForm(){if(formEl){formEl.hidden=true;formEl.innerHTML="";}document.documentElement.style.overflow="";}
 
+/* ---------- push notifications ---------- */
+/* Web Push done in the browser: the manager's app signs (VAPID, ES256) and encrypts (RFC 8291 aes128gcm) each message with
+   WebCrypto, then the Google backend only relays the bytes to Apple/Google push servers. */
+var WP={
+  b64u:function(buf){var b=new Uint8Array(buf),s="";for(var i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");},
+  unb64u:function(str){str=String(str).replace(/-/g,"+").replace(/_/g,"/");while(str.length%4)str+="=";var s=atob(str),b=new Uint8Array(s.length);for(var i=0;i<s.length;i++)b[i]=s.charCodeAt(i);return b;},
+  b64:function(buf){var b=new Uint8Array(buf),s="";for(var i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);return btoa(s);},
+  cat:function(){var n=0,i,a=arguments;for(i=0;i<a.length;i++)n+=a[i].length;var o=new Uint8Array(n),p=0;for(i=0;i<a.length;i++){o.set(a[i],p);p+=a[i].length;}return o;},
+  utf8:function(s){return new TextEncoder().encode(s);},
+  hmac:function(key,data){return crypto.subtle.importKey("raw",key,{name:"HMAC",hash:"SHA-256"},false,["sign"]).then(function(k){return crypto.subtle.sign("HMAC",k,data);}).then(function(b){return new Uint8Array(b);});},
+  newVapid:function(){return crypto.subtle.generateKey({name:"ECDSA",namedCurve:"P-256"},true,["sign","verify"]).then(function(kp){return Promise.all([crypto.subtle.exportKey("raw",kp.publicKey),crypto.subtle.exportKey("jwk",kp.privateKey)]);}).then(function(r){return{publicKey:WP.b64u(r[0]),privateJwk:r[1]};});},
+  jwt:function(privateJwk,aud,subject){
+    var enc=function(o){return WP.b64u(WP.utf8(JSON.stringify(o)));};
+    var unsigned=enc({typ:"JWT",alg:"ES256"})+"."+enc({aud:aud,exp:Math.floor(Date.now()/1000)+12*3600,sub:subject});
+    return crypto.subtle.importKey("jwk",privateJwk,{name:"ECDSA",namedCurve:"P-256"},false,["sign"]).then(function(k){return crypto.subtle.sign({name:"ECDSA",hash:"SHA-256"},k,WP.utf8(unsigned));}).then(function(sig){return unsigned+"."+WP.b64u(sig);});
+  },
+  encrypt:function(sub,payload){
+    var uaPub=WP.unb64u(sub.keys.p256dh),auth=WP.unb64u(sub.keys.auth),salt=crypto.getRandomValues(new Uint8Array(16)),asPub,ecdh;
+    return crypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]).then(function(kp){
+      return crypto.subtle.exportKey("raw",kp.publicKey).then(function(raw){asPub=new Uint8Array(raw);
+        return crypto.subtle.importKey("raw",uaPub,{name:"ECDH",namedCurve:"P-256"},false,[]);}).then(function(uk){return crypto.subtle.deriveBits({name:"ECDH",public:uk},kp.privateKey,256);});
+    }).then(function(bits){ecdh=new Uint8Array(bits);return WP.hmac(auth,ecdh);})
+    .then(function(prkKey){return WP.hmac(prkKey,WP.cat(WP.utf8("WebPush: info\0"),uaPub,asPub,new Uint8Array([1])));})
+    .then(function(ikm){return WP.hmac(salt,ikm);})
+    .then(function(prk){return Promise.all([WP.hmac(prk,WP.cat(WP.utf8("Content-Encoding: aes128gcm\0"),new Uint8Array([1]))),WP.hmac(prk,WP.cat(WP.utf8("Content-Encoding: nonce\0"),new Uint8Array([1])))]);})
+    .then(function(r){var cek=r[0].slice(0,16),nonce=r[1].slice(0,12);
+      return crypto.subtle.importKey("raw",cek,{name:"AES-GCM"},false,["encrypt"]).then(function(k){return crypto.subtle.encrypt({name:"AES-GCM",iv:nonce},k,WP.cat(WP.utf8(payload),new Uint8Array([2])));});})
+    .then(function(ct){var rs=new Uint8Array([0,0,16,0]);return WP.cat(salt,rs,new Uint8Array([65]),asPub,new Uint8Array(ct));});
+  },
+  message:function(sub,vapid,payload){
+    var aud=new URL(sub.endpoint).origin;
+    return Promise.all([WP.jwt(vapid.privateJwk,aud,"mailto:matt@ridgewayaluminum.com"),WP.encrypt(sub,payload)]).then(function(r){
+      return{endpoint:sub.endpoint,body:WP.b64(r[1]),headers:{"Authorization":"vapid t="+r[0]+", k="+vapid.publicKey,"Content-Encoding":"aes128gcm","TTL":"86400","Urgency":"high"}};});
+  }
+};
+
+function pushCapable(){return "serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;}
+function isStandalone(){return !!(navigator.standalone||(window.matchMedia&&matchMedia("(display-mode: standalone)").matches));}
+/* footer row: turn notifications on (crew), or say they're on */
+function pushUI(){
+  var el=document.getElementById("pushRow");if(!el)return;
+  if(!pushCapable()){el.innerHTML=/iPhone|iPad/.test(navigator.userAgent)&&!isStandalone()?'<span>Add Crew Board to your Home Screen to get notifications</span>':'';return;}
+  navigator.serviceWorker.ready.then(function(reg){return reg.pushManager.getSubscription();}).then(function(sub){
+    el.innerHTML=sub&&Notification.permission==="granted"?'<span>🔔 Notifications are on</span>':(Notification.permission==="denied"?'<span>Notifications are blocked in Settings › Notifications › Crew Board</span>':'<button class="btn sm pri" data-a="pushOn">🔔 Turn on notifications</button>');
+  }).catch(function(){el.innerHTML="";});
+}
+function pushOn(btn){
+  if(btn){btn.disabled=true;btn.textContent="Turning on…";}
+  var key;
+  fetch(API_URL+"?action=vapid").then(function(r){return r.json();}).then(function(r){key=r&&r.key;if(!key)throw new Error("Notifications aren't set up yet. Ask Matt.");
+    return Notification.requestPermission();}).then(function(p){if(p!=="granted")throw new Error("Notifications weren't allowed");
+    return navigator.serviceWorker.ready;}).then(function(reg){return reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:WP.unb64u(key)});})
+  .then(function(sub){var me="";try{me=localStorage.getItem("cjb-me")||"";}catch(e){}
+    if(!me){me=(window.prompt("Your name? (so Matt knows whose phone this is)")||"").trim();try{localStorage.setItem("cjb-me",me);}catch(e){}}
+    return post({action:"subscribe",sub:sub.toJSON(),name:me});})
+  .then(function(r){if(!r||!r.ok)throw new Error((r&&r.error)||"Couldn't turn on");toast("🔔 Notifications on");pushUI();})
+  .catch(function(e){toast(String(e&&e.message||e));pushUI();});
+}
+/* manager: send a notification to every phone that turned them on */
+var pushInfoCache=null;
+function notifyForm(){
+  openModal('<h2>📣 Notify the crew</h2><p id="nfCount" style="margin:0;color:var(--muted);font-weight:500">Checking phones…</p><label>Message</label><textarea id="nfMsg" rows="4" maxlength="240" placeholder="e.g. Grab your jackets from the merc before you head out"></textarea><div class="mrow"><button class="btn ghost" data-a="close">Cancel</button><button class="btn pri" data-a="notifySend">Send</button></div>');
+  post({action:"pushInfo",pin:pin}).then(function(r){pushInfoCache=r;var c=document.getElementById("nfCount");if(!c)return;
+    if(!r||!r.ok){c.textContent="Couldn't reach the board: "+((r&&r.error)||"");return;}
+    var n=r.subs.length,names=r.subs.map(function(x){return x.name;}).filter(Boolean);
+    c.textContent=n?("Goes to "+n+" phone"+(n===1?"":"s")+(names.length?": "+names.join(", "):"")):"No phones have turned on notifications yet. The crew tap 🔔 Turn on notifications at the bottom of the board.";
+  }).catch(function(){var c=document.getElementById("nfCount");if(c)c.textContent="Couldn't reach the board.";});
+  setTimeout(function(){var t=document.getElementById("nfMsg");if(t)t.focus();},150);
+}
+function ensureVapid(info){
+  if(info.vapidPublic&&info.vapidPrivate&&info.vapidPrivate!=="{}")return Promise.resolve({publicKey:info.vapidPublic,privateJwk:JSON.parse(info.vapidPrivate)});
+  return WP.newVapid().then(function(v){return post({action:"setVapid",pin:pin,publicKey:v.publicKey,privateJwk:v.privateJwk}).then(function(r){if(!r||!r.ok)throw new Error((r&&r.error)||"key setup failed");return v;});});
+}
+function notifySend(btn){
+  var msg=(document.getElementById("nfMsg").value||"").trim();if(!msg){toast("Type a message");return;}
+  btn.disabled=true;btn.textContent="Sending…";
+  var info;
+  (pushInfoCache&&pushInfoCache.ok?Promise.resolve(pushInfoCache):post({action:"pushInfo",pin:pin})).then(function(r){info=r;if(!r||!r.ok)throw new Error((r&&r.error)||"Couldn't reach the board");
+    if(!r.subs.length)throw new Error("No phones have notifications on yet");return ensureVapid(r);})
+  .then(function(v){var payload=JSON.stringify({title:"Crew Board",body:msg,url:"./"});return Promise.all(info.subs.map(function(sub){return WP.message(sub,v,payload);}));})
+  .then(function(msgs){return post({action:"pushSend",pin:pin,msgs:msgs});})
+  .then(function(r){if(!r||!r.ok)throw new Error((r&&r.error)||"Send failed");closeModal();pushInfoCache=null;
+    toast("📣 Sent to "+r.sent+" phone"+(r.sent===1?"":"s")+(r.removed?" ("+r.removed+" old phone"+(r.removed===1?"":"s")+" removed)":""));})
+  .catch(function(e){btn.disabled=false;btn.textContent="Send";toast(String(e&&e.message||e));});
+}
+
 /* ---------- events ---------- */
 document.addEventListener("click",function(e){
   var b=e.target.closest("[data-a]");if(!b)return;var a=b.getAttribute("data-a"),i=+b.getAttribute("data-i"),d;
@@ -711,6 +862,9 @@ document.addEventListener("click",function(e){
   case "nextDay":go("day",addWorkdays(cur,1));break;
   case "toToday":go("day",todayKey());break;
   case "checkUpd":checkUpdates(b);break;
+  case "pushOn":pushOn(b);break;
+  case "notify":notifyForm();break;
+  case "notifySend":notifySend(b);break;
   case "reorder":reorder=!reorder;render();break;
   case "wfold":var wk2=b.getAttribute("data-k");wFoldSet(wk2,!FOLD[wk2+"|W"]);break;
   case "wfoldAll":var allw=!wFoldAllState(),mw=monday(cur);for(var wi=0;wi<5;wi++)wFoldSet(addDays(mw,wi),allw);break;
@@ -768,7 +922,7 @@ function noteSave(el){
   var st=document.querySelector('[data-inst="'+i+'"]');if(st)st.textContent="Saving…";
   state.updatedAt=Date.now();try{localStorage.setItem("cjb-cache",JSON.stringify(state));}catch(e){}
   saving=true;
-  post({action:"save",pin:pin,state:state}).then(function(r){saving=false;var s2=document.querySelector('[data-inst="'+i+'"]');if(s2)s2.textContent=(r&&r.ok)?"✓ Saved — crew can see it":"Couldn't save — tap away to try again";if(r&&r.ok)state.updatedAt=r.updatedAt;}).catch(function(){saving=false;var s2=document.querySelector('[data-inst="'+i+'"]');if(s2)s2.textContent="No signal — will try again when you tap away";d.items[i].notes=(d.items[i].notes||"")+"";});
+  latestMerged().then(function(m){adopt(m);return post({action:"save",pin:pin,state:state});}).then(function(r){saving=false;var s2=document.querySelector('[data-inst="'+i+'"]');if(s2)s2.textContent=(r&&r.ok)?"✓ Saved — crew can see it":"Couldn't save — tap away to try again";if(r&&r.ok){state.updatedAt=r.updatedAt;base=clone(state);}}).catch(function(){saving=false;var s2=document.querySelector('[data-inst="'+i+'"]');if(s2)s2.textContent="No signal — will try again when you tap away";d.items[i].notes=(d.items[i].notes||"")+"";});
 }
 document.addEventListener("input",function(e){if(e.target.classList&&e.target.classList.contains("inote")){var el=e.target;var st=document.querySelector('[data-inst="'+el.getAttribute("data-inote")+'"]');if(st)st.textContent="…";clearTimeout(noteTimer);noteTimer=setTimeout(function(){noteSave(el);},2000);}});
 document.addEventListener("focusout",function(e){if(e.target.classList&&e.target.classList.contains("inote")){clearTimeout(noteTimer);noteSave(e.target);}});
@@ -788,7 +942,7 @@ function typingNote(){var a=document.activeElement;return !!(a&&a.classList&&a.c
 var tx=null,ty=null;
 document.addEventListener("touchstart",function(e){if(view!=="day"||!modalEl.hidden||e.touches.length!==1){tx=null;return;}tx=e.touches[0].clientX;ty=e.touches[0].clientY;},{passive:true});
 document.addEventListener("touchend",function(e){if(tx===null)return;var dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;tx=null;if(Math.abs(dx)>70&&Math.abs(dx)>Math.abs(dy)*1.8){go("day",addWorkdays(cur,dx<0?1:-1));}},{passive:true});
-readHash();render();load();
+readHash();render();load();loadWx();
 })();
 </script>
 <div style="position:fixed;left:50%;top:6px;transform:translateX(-50%);z-index:99;background:#7B2CBF;color:#fff;font:800 14px/1 system-ui;padding:8px 14px;border-radius:20px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.25)">PREVIEW · Crew Board</div></body></html>
