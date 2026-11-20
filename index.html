@@ -382,7 +382,7 @@ function askPin(){
 }
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"){loadWx();if(modalEl.hidden&&!saving&&!typingNote())load(true);}});
 setInterval(function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!editing())load(true);},5*60*1000);
-var APP_VERSION="2026.11.19-5";
+var APP_VERSION="2026.11.19-6";
 /* Check for updates: get the newest app from GitHub; reload if it changed, otherwise refresh the schedule */
 function checkUpdates(btn){
   if(btn){btn.disabled=true;btn.textContent="Checking…";}
@@ -825,7 +825,7 @@ function notifySend(btn){
   var info;
   (pushInfoCache&&pushInfoCache.ok?Promise.resolve(pushInfoCache):post({action:"pushInfo",pin:pin})).then(function(r){info=r;if(!r||!r.ok)throw new Error((r&&r.error)||"Couldn't reach the board");
     if(!r.subs.length)throw new Error("No phones have notifications on yet");return ensureVapid(r);})
-  .then(function(v){var payload=JSON.stringify({title:"Crew Board",body:msg,url:"./"});return Promise.all(info.subs.map(function(sub){return WP.message(sub,v,payload);}));})
+  .then(function(v){var payload=JSON.stringify({title:"📣 Matt",body:msg,url:"./"});return Promise.all(info.subs.map(function(sub){return WP.message(sub,v,payload);}));})
   .then(function(msgs){return post({action:"pushSend",pin:pin,msgs:msgs});})
   .then(function(r){if(!r||!r.ok)throw new Error((r&&r.error)||"Send failed");closeModal();pushInfoCache=null;
     toast("📣 Sent to "+r.sent+" phone"+(r.sent===1?"":"s")+(r.removed?" ("+r.removed+" old phone"+(r.removed===1?"":"s")+" removed)":""));})
