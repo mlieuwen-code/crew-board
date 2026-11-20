@@ -197,6 +197,13 @@ html[data-theme=wizard]{--bg:#150F29;--card:#211939;--ink:#F2EDFF;--muted:#B4A9D
 html[data-theme=wizard] body{background-image:radial-gradient(1.5px 1.5px at 20px 30px,#fff8 50%,transparent),radial-gradient(1px 1px at 120px 80px,#fff6 50%,transparent),radial-gradient(1.5px 1.5px at 200px 160px,#f5b30188 50%,transparent),radial-gradient(1px 1px at 60px 200px,#fff5 50%,transparent);background-size:260px 260px}
 html[data-theme=classic]{--bg:#F4EFE7;--card:#FFFDF9;--ink:#2A2622;--muted:#6B635A;--line:#E3DACC;--field:#FAF6F0;--chip:#EFE8DC;--chip2:#EAE3D8;
   --accent:#2F5D50;--tint:#EEF4F1;--tint2:#E4EDE9;--deep:#21443A;--orange:#E8590C;--hdr:linear-gradient(160deg,#2F5D50 0%,#21443A 100%);color-scheme:light}
+html[data-theme=xmas]{--bg:#0E2A1C;--card:#14382A;--ink:#FFF8EE;--muted:#B9D3C2;--line:#24533D;--field:#10301F;--chip:#1D4532;--chip2:#173D2B;
+  --amberbg:#3B2F10;--amberink:#F3D27A;--bad:#FF9A9A;--badbg:#3D1A1A;--accent:#C8102E;--tint:#1A4231;--tint2:#20503A;--deep:#F3D27A;--orange:#E8B923;--on2:#2A1A00;
+  --msbg:#3D1A1A;--lobg:#3B2F10;--loink:#F3D27A;--awaybg:#1D4532;--awayink:#DCEBE1;--hdr:linear-gradient(160deg,#C8102E 0%,#7A0C1C 100%);color-scheme:dark}
+html[data-theme=xmas] body{background-image:radial-gradient(2px 2px at 20px 30px,#fffc 50%,transparent),radial-gradient(1.5px 1.5px at 90px 120px,#fff9 50%,transparent),radial-gradient(2.5px 2.5px at 170px 60px,#fffb 50%,transparent),radial-gradient(1.5px 1.5px at 230px 200px,#fff8 50%,transparent),radial-gradient(2px 2px at 40px 220px,#fffa 50%,transparent),radial-gradient(1.5px 1.5px at 140px 250px,#fff7 50%,transparent);background-size:260px 260px}
+html[data-theme=xmas] .site{background-image:repeating-linear-gradient(135deg,#C8102E 0 10px,#FFF8EE 10px 20px);background-size:100% 7px;background-position:bottom;background-repeat:no-repeat;padding-bottom:7px}
+html[data-theme=xmas] .top .brand::after{content:"🎄";font-size:26px;line-height:1;flex-shrink:0;align-self:flex-end}
+@media(max-width:560px){html[data-theme=xmas] .top:has([data-a=lock]) .brand::after{display:none}}
 .themes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:6px 0 4px}
 .th{border:2px solid var(--line);border-radius:14px;padding:8px;background:var(--card);display:flex;flex-direction:column;gap:6px;align-items:flex-start;text-align:left;color:var(--ink)}
 .th[aria-pressed=true]{border-color:var(--orange);box-shadow:0 0 0 2px var(--orange)}
@@ -457,14 +464,14 @@ function tab(v,n){return '<button class="tab'+(view===v?' on':'')+'" data-a="go"
 
 /* ---------- themes: each phone picks its own (saved on the device) ---------- */
 var THEMES=[["auto","Auto","#EDF1F5","#16445F","#2289BB"],["ridgeway","Ridgeway","#EDF1F5","#16445F","#2289BB"],["night","Ridgeway Night","#0B1722","#2393C9","#36A9E1"],
-  ["sun","Sunlight","#FFFFFF","#000000","#0050C8"],["hivis","Hi-Vis","#0D0D0D","#D4FF00","#D4FF00"],["wizard","Wizard","#150F29","#6D3FD8","#F5B301"],["classic","Classic","#F4EFE7","#2F5D50","#E8590C"]];
-var THEME_DARK={night:1,hivis:1,wizard:1},THEME_KEY="cjb-theme";
+  ["sun","Sunlight","#FFFFFF","#000000","#0050C8"],["hivis","Hi-Vis","#0D0D0D","#D4FF00","#D4FF00"],["wizard","Wizard","#150F29","#6D3FD8","#F5B301"],["classic","Classic","#F4EFE7","#2F5D50","#E8590C"],["xmas","Christmas","#0E2A1C","#C8102E","#E8B923"]];
+var THEME_DARK={night:1,hivis:1,wizard:1,xmas:1},THEME_KEY="cjb-theme";
 function savedTheme(){try{return localStorage.getItem(THEME_KEY)||"auto";}catch(e){return "auto";}}
 var themeMq=window.matchMedia?matchMedia("(prefers-color-scheme: dark)"):{matches:false};
 function applyTheme(){
   var pick=savedTheme(),t=pick==="auto"?(themeMq.matches?"night":"ridgeway"):pick,h=document.documentElement;
   if(t==="ridgeway")h.removeAttribute("data-theme");else h.setAttribute("data-theme",t);
-  var m=document.querySelector('meta[name=theme-color]');if(m)m.content={sun:"#000000",hivis:"#0D0D0D",wizard:"#2A1D55",classic:"#2F5D50"}[t]||"#123A52";
+  var m=document.querySelector('meta[name=theme-color]');if(m)m.content={sun:"#000000",hivis:"#0D0D0D",wizard:"#2A1D55",classic:"#2F5D50",xmas:"#C8102E"}[t]||"#123A52";
 }
 if(themeMq.addEventListener)themeMq.addEventListener("change",applyTheme);
 applyTheme();
