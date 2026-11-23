@@ -340,7 +340,9 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){retur
 function pad(n){return(n<10?"0":"")+n;}
 function key(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
 function parse(k){var p=k.split("-");return new Date(+p[0],+p[1]-1,+p[2]);}
-function todayKey(){var d=new Date();var w=d.getDay();if(w===6)d.setDate(d.getDate()+2);if(w===0)d.setDate(d.getDate()+1);return key(d);}
+/* the board opens on the next work day from 5 pm (Friday 5 pm → Monday) */
+function todayKey(){var SWITCH_HOUR=17,d=new Date();if(d.getHours()>=SWITCH_HOUR)d.setDate(d.getDate()+1);var w=d.getDay();if(w===6)d.setDate(d.getDate()+2);if(w===0)d.setDate(d.getDate()+1);return key(d);}
+function dayWord(k){return k===realToday()?"Today":k===addDays(realToday(),1)?"Tomorrow":DN[parse(k).getDay()];}
 function realToday(){return key(new Date());}
 function addWorkdays(k,n){var d=parse(k);var step=n<0?-1:1;n=Math.abs(n);while(n>0){d.setDate(d.getDate()+step);var w=d.getDay();if(w!==0&&w!==6)n--;}return key(d);}
 function monday(k){var d=parse(k);var w=d.getDay();d.setDate(d.getDate()-((w+6)%7));return key(d);}
@@ -440,9 +442,10 @@ function askPin(){
   openModal('<h2>Manager PIN</h2><div><label>Enter your PIN to edit the board</label><input id="pin-in" type="password" inputmode="numeric" autocomplete="off"></div><div class="mrow"><button class="btn ghost" data-a="close">Cancel</button><button class="btn pri" data-a="checkPin">Unlock</button></div>');
   setTimeout(function(){var el=document.getElementById("pin-in");if(el)el.focus();},50);
 }
-document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"){loadWx();if(modalEl.hidden&&!saving&&!typingNote())load(true);}});
+var lastDefault=todayKey();
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"){var nd=todayKey();if(nd!==lastDefault){if(view==="day"&&cur===lastDefault&&modalEl.hidden)go("day",nd);lastDefault=nd;}loadWx();if(modalEl.hidden&&!saving&&!typingNote())load(true);}});
 setInterval(function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!editing())load(true);},5*60*1000);
-var APP_VERSION="2026.11.20-2";
+var APP_VERSION="2026.11.23-1";
 /* Check for updates: get the newest app from GitHub; reload if it changed, otherwise refresh the schedule */
 function checkUpdates(btn){
   if(btn){btn.disabled=true;btn.textContent="Checking…";}
@@ -535,8 +538,8 @@ function wxLine(k){
 function wxShort(k){var w=wxOf(k);if(!w)return "";return '<div class="wxs">'+w.i+' <b>'+w.hi+'°/'+w.lo+'°</b>'+(w.pop!=null?' · '+w.pop+'%':'')+(w.g>=50?' · ⚠️ '+w.g+' km/h':'')+'</div>';}
 function renderDay(){
   var d=day(cur),h='';
-  h+='<div class="nav"><button class="round" data-a="prevDay" aria-label="Previous day"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><h1>'+(cur===realToday()?'Today':longDate(cur).split(",")[0])+'<small>'+longDate(cur)+' · '+d.items.length+' job'+(d.items.length===1?'':'s')+'</small></h1><button class="round" data-a="nextDay" aria-label="Next day"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>';
-  if(cur!==todayKey())h+='<button class="btn sm" data-a="toToday">Today</button>';
+  h+='<div class="nav"><button class="round" data-a="prevDay" aria-label="Previous day"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><h1>'+dayWord(cur)+'<small>'+longDate(cur)+' · '+d.items.length+' job'+(d.items.length===1?'':'s')+'</small></h1><button class="round" data-a="nextDay" aria-label="Next day"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>';
+  if(cur!==todayKey())h+='<button class="btn sm" data-a="toToday">'+dayWord(todayKey())+'</button>';
   if(editing())h+='<button class="btn sm" data-a="notify">📣 Notify crew</button>';
   if(editing()&&d.items.length>1)h+='<button class="btn sm'+(reorder?' pri':'')+'" data-a="reorder">'+(reorder?'✓ Done reordering':'⇅ Reorder')+'</button>';
   if(d.items.length>1&&!reorder)h+='<button class="btn sm" data-a="foldAll">'+(foldAllState()?'Expand all':'Collapse all')+'</button>';
