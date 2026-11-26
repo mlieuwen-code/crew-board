@@ -179,6 +179,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
 .wx{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 14px;margin:-4px 0 14px;font-size:15px;color:var(--ink)}
 .wx .wxl{flex-basis:100%;font-size:13px;font-weight:500;color:var(--muted);opacity:.85;margin-bottom:-6px}.wx .wxi{font-size:26px;line-height:1}.wx b{font-weight:600}.wx .wxt{font-size:20px;font-weight:600}.wx .wxm{color:var(--muted)}.wx .wxw{color:#B54708;font-weight:600}
 .wxs{font-size:13px;color:var(--muted);padding:0 6px;margin-top:-4px}.wxs b{color:var(--ink);font-weight:600}
+.rhint{font-size:14px;color:var(--muted);margin:-4px 0 10px;padding:0 4px}.rhint b{color:var(--ink);font-weight:600}
 /* ---- deficiency list (folded) ---- */
 .punch{background:var(--tint);border:1px solid var(--line);border-radius:14px;margin:12px 0}
 .punch summary{list-style:none;cursor:pointer;padding:12px 14px;font-weight:600;display:flex;align-items:center;gap:8px}
@@ -376,11 +377,12 @@ function editing(){return editMode&&!!pin;}
 function apiReady(){return API_URL&&API_URL.indexOf("__")!==0;}
 function load(quiet){
   if(!apiReady()){loadErr="setup";render();return;}
-  if(loading)return;loading=true;if(!quiet)render();
+  if(loading)return;loading=true;if(!quiet)render();var rev0=localRev;
   fetch(API_URL+"?action=board&t="+Date.now()).then(function(r){return r.json();}).then(function(res){
     loading=false;
     if(!res||!res.ok)throw new Error(res&&res.error||"error");
     if(typingNote()&&loaded)return;
+    if(loaded&&(saving||pendingSave||reorderDirty||localRev!==rev0)){render();return;}
     if(!modalEl.hidden&&loaded){render();return;}
     state=res.state;base=clone(state);loaded=true;loadErr="";if(editing())loadOffList();
     try{localStorage.setItem("cjb-cache",JSON.stringify(state));}catch(e){}
@@ -425,18 +427,20 @@ function latestMerged(){
   }).catch(function(){return state;});
 }
 function adopt(m){if(m!==state&&!same(m,state))state=m;}
-var saving=false;
+var saving=false,pendingSave=null,localRev=0;
+function saveNext(){if(pendingSave){var pm=pendingSave;pendingSave=null;save(pm===true?undefined:pm);}}
 function save(msg){
-  state.updatedAt=Date.now();render();
+  localRev++;state.updatedAt=Date.now();render();
   try{localStorage.setItem("cjb-cache",JSON.stringify(state));}catch(e){}
   if(!apiReady()){toast("Not connected yet");return;}
-  saving=true;toast("Saving…");
-  latestMerged().then(function(m){adopt(m);return post({action:"save",pin:pin,state:state});}).then(function(res){
-    saving=false;
+  if(saving){pendingSave=msg||true;return;}
+  saving=true;toast("Saving…");var pin0=pin;
+  latestMerged().then(function(m){adopt(m);return post({action:"save",pin:pin0,state:state});}).then(function(res){
+    saving=false;setTimeout(saveNext,0);
     if(res&&res.ok){state.updatedAt=res.updatedAt;base=clone(state);try{localStorage.setItem("cjb-cache",JSON.stringify(state));}catch(e){}toast(msg||"Saved — the crew can see it");render();}
     else if(res&&res.error==="wrong pin"){pin="";try{localStorage.removeItem("cjb-pin");}catch(e){}editMode=false;render();toast("PIN changed — enter it again");}
     else toast("Couldn't save — try again");
-  }).catch(function(){saving=false;toast("Couldn't save — check your signal and try again");});
+  }).catch(function(){saving=false;toast("Couldn't save — check your signal and try again");setTimeout(saveNext,0);});
 }
 function askPin(){
   openModal('<h2>Manager PIN</h2><div><label>Enter your PIN to edit the board</label><input id="pin-in" type="password" inputmode="numeric" autocomplete="off"></div><div class="mrow"><button class="btn ghost" data-a="close">Cancel</button><button class="btn pri" data-a="checkPin">Unlock</button></div>');
@@ -445,7 +449,7 @@ function askPin(){
 var lastDefault=todayKey();
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"){var nd=todayKey();if(nd!==lastDefault){if(view==="day"&&cur===lastDefault&&modalEl.hidden)go("day",nd);lastDefault=nd;}loadWx();if(modalEl.hidden&&!saving&&!typingNote())load(true);}});
 setInterval(function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!editing())load(true);},5*60*1000);
-var APP_VERSION="2026.11.23-1";
+var APP_VERSION="2026.11.26-1";
 /* Check for updates: get the newest app from GitHub; reload if it changed, otherwise refresh the schedule */
 function checkUpdates(btn){
   if(btn){btn.disabled=true;btn.textContent="Checking…";}
@@ -469,7 +473,7 @@ function readHash(){
   else if((m=h.match(/^week-(\d{4}-\d\d-\d\d)$/))){view="week";cur=m[1];}
   else if(h==="jobs")view="jobs";else if(h==="crew")view="crew";else if(h==="off")view="off";else if(h==="forms")view="forms";
 }
-function go(v,k){view=v;if(k)cur=k;var h=v==="day"?"day-"+cur:v==="week"?"week-"+monday(cur):v;try{history.replaceState(null,"","#"+h);}catch(e){location.hash=h;}render();window.scrollTo(0,0);}
+function go(v,k){if(reorder){reorder=false;if(reorderDirty){reorderDirty=false;save("Order saved");}}view=v;if(k)cur=k;var h=v==="day"?"day-"+cur:v==="week"?"week-"+monday(cur):v;try{history.replaceState(null,"","#"+h);}catch(e){location.hash=h;}render();window.scrollTo(0,0);}
 window.addEventListener("hashchange",function(){readHash();render();});
 
 /* ---------- render ---------- */
@@ -553,7 +557,7 @@ function renderDay(){
   if(d.note)h+='<div class="daynote">'+esc(d.note)+'</div>';
   if(!d.items.length){h+='<div class="empty">Nothing scheduled for '+longDate(cur)+' yet.'+(editing()?' Tap “+ Add job”.':'')+'</div>';return h;}
   if(reorder&&editing()&&d.items.length>1){
-    h+='<div class="rlist">';
+    h+='<div class="rhint">'+(reorderDirty?'Order changed — tap <b>✓ Done reordering</b> to save it':'Use the arrows to move jobs, then tap <b>✓ Done reordering</b>')+'</div><div class="rlist">';
     d.items.forEach(function(it,i){var j=itemJob(it)||{name:it.jobName||"Site"},t=typeOf(it.type);
       h+='<div class="rrow" style="--tc:'+t.c+'"><div class="num">'+(i+1)+'</div><div class="rt"><b>'+esc(j.name)+'</b><span>'+t.n+(j.builder?' · '+esc(j.builder):'')+(it.calTitle&&it.calTitle.toLowerCase()!==String(j.name).toLowerCase()?' · '+esc(it.calTitle):'')+'</span></div>'+
         '<button class="rbtn" data-a="up" data-i="'+i+'" aria-label="Move up"'+(i===0?' disabled':'')+'><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button><button class="rbtn" data-a="down" data-i="'+i+'" aria-label="Move down"'+(i===d.items.length-1?' disabled':'')+'><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>';});
@@ -563,7 +567,8 @@ function renderDay(){
   d.items.forEach(function(it,i){h+=siteCard(it,i,d.items.length);});
   return h+'</div>';
 }
-var reorder=false;
+var reorder=false,reorderDirty=false;
+function endReorder(){reorder=false;if(reorderDirty){reorderDirty=false;save("Order saved — the crew can see it");}else render();}
 var FOLD={};try{FOLD=JSON.parse(localStorage.getItem("cjb-fold")||"{}")||{};}catch(e){FOLD={};}
 function foldKey(it,i){return cur+"|"+(it.calId||it.id||((it.jobId||it.jobName||"")+"#"+i));}
 function foldSave(){try{var cut=addDays(todayKey(),-14),k;for(k in FOLD)if(k.slice(0,10)<cut)delete FOLD[k];localStorage.setItem("cjb-fold",JSON.stringify(FOLD));}catch(e){}}
@@ -935,7 +940,7 @@ document.addEventListener("click",function(e){
   case "closeForm":closeForm();break;
   case "offSend":offSend(b);break;
   case "offSet":offSet(b.getAttribute("data-id"),b.getAttribute("data-s"),b);break;
-  case "toggleEdit":if(editing()){editMode=false;}else if(!pin){askPin();break;}else{editMode=true;}try{localStorage.setItem("cjb-edit",editMode?"1":"0");}catch(x){}render();break;
+  case "toggleEdit":if(reorder)endReorder();if(editing()){editMode=false;}else if(!pin){askPin();break;}else{editMode=true;}try{localStorage.setItem("cjb-edit",editMode?"1":"0");}catch(x){}render();break;
   case "refresh":load();break;
   case "noteNext":(function(){
     var ta=document.querySelector('[data-inote="'+i+'"]'),src=day(cur).items[i];if(!src)return;
@@ -950,7 +955,7 @@ document.addEventListener("click",function(e){
     if((hit.notes||"").indexOf(t)===-1)hit.notes=(hit.notes&&hit.notes.trim()?hit.notes.trim()+"\n":"")+t;
     save("Note copied to "+longDate(hk));
   })();break;
-  case "lock":pin="";editMode=false;try{localStorage.removeItem("cjb-pin");localStorage.setItem("cjb-edit","0");}catch(x){}render();toast("Locked — tap the logo 5 times to unlock");break;
+  case "lock":if(reorder)endReorder();pin="";editMode=false;try{localStorage.removeItem("cjb-pin");localStorage.setItem("cjb-edit","0");}catch(x){}render();toast("Locked — tap the logo 5 times to unlock");break;
   case "checkPin":var pv=document.getElementById("pin-in").value.trim();if(!pv)return;b.textContent="Checking…";post({action:"checkPin",pin:pv}).then(function(r){if(r&&r.ok){pin=pv;try{localStorage.setItem("cjb-pin",pv);}catch(x){}editMode=true;try{localStorage.setItem("cjb-edit","1");}catch(x){}closeModal();render();loadOffList();toast("Unlocked on this device");}else{b.textContent="Unlock";toast("Wrong PIN");}}).catch(function(){b.textContent="Unlock";toast("Couldn't check — no signal?");});break;
   case "prevDay":go("day",addWorkdays(cur,-1));break;
   case "nextDay":go("day",addWorkdays(cur,1));break;
@@ -959,7 +964,7 @@ document.addEventListener("click",function(e){
   case "pushOn":pushOn(b);break;
   case "notify":notifyForm();break;
   case "notifySend":notifySend(b);break;
-  case "reorder":reorder=!reorder;render();break;
+  case "reorder":if(reorder)endReorder();else{reorder=true;render();}break;
   case "wfold":var wk2=b.getAttribute("data-k");wFoldSet(wk2,!FOLD[wk2+"|W"]);break;
   case "wfoldAll":var allw=!wFoldAllState(),mw=monday(cur);for(var wi=0;wi<5;wi++)wFoldSet(addDays(mw,wi),allw);break;
   case "fold":if(e.target.closest("a"))return;var se=b.closest(".site");foldSet(i,!se.classList.contains("folded"));var fb=se.querySelector(".fold");if(fb)fb.setAttribute("aria-expanded",String(!se.classList.contains("folded")));break;
@@ -978,7 +983,7 @@ document.addEventListener("click",function(e){
     itemForm();break;
   case "saveItem":grab();if(!draft.jobId){toast("Pick a jobsite");return;}d=ensureDay(draftDay);if(draftIdx<0)d.items.push(draft);else d.items[draftIdx]=draft;closeModal();save();break;
   case "repeatItem":var nk=addWorkdays(cur,1);ensureDay(nk).items.push(clone(day(cur).items[i]));save("Copied to "+longDate(nk));break;
-  case "up":case "down":d=state.days[cur];var j2=a==="up"?i-1:i+1;var tmp=d.items[i];d.items[i]=d.items[j2];d.items[j2]=tmp;save();break;
+  case "up":case "down":d=state.days[cur];var j2=a==="up"?i-1:i+1;var tmp=d.items[i];d.items[i]=d.items[j2];d.items[j2]=tmp;reorderDirty=true;render();break;
   case "delItem":if(b.getAttribute("data-armed")){state.days[cur].items.splice(i,1);cleanDays();save("Removed");}else{b.setAttribute("data-armed","1");b.textContent="Tap again to remove";}break;
   case "editDayNote":textForm("Note for "+longDate(cur),day(cur).note,"saveDayNote");break;
   case "saveDayNote":ensureDay(cur).note=document.getElementById("t-val").value.trim();cleanDays();closeModal();save();break;
