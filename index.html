@@ -449,7 +449,7 @@ function askPin(){
 var lastDefault=todayKey();
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"){var nd=todayKey();if(nd!==lastDefault){if(view==="day"&&cur===lastDefault&&modalEl.hidden)go("day",nd);lastDefault=nd;}loadWx();if(modalEl.hidden&&!saving&&!typingNote())load(true);}});
 setInterval(function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!editing())load(true);},5*60*1000);
-var APP_VERSION="2026.11.26-2";
+var APP_VERSION="2026.11.26-3";
 /* Check for updates: get the newest app from GitHub; reload if it changed, otherwise refresh the schedule */
 function checkUpdates(btn){
   if(btn){btn.disabled=true;btn.textContent="Checking…";}
@@ -540,7 +540,7 @@ function wxLine(k){
   var w=wxOf(k);if(!w)return "";
   var bits=[];
   if(w.pop!=null)bits.push('<span class="wxm">'+w.pop+'% '+(w.sn>0.2?'snow':'rain')+(w.mm>=1?' · '+(w.sn>0.2?Math.round(w.sn)+' cm':Math.round(w.mm)+' mm'):'')+'</span>');
-  if(w.g!=null||w.w!=null)bits.push('<span class="'+(w.g>=50?'wxw':'wxm')+'">'+(w.g>=50?'⚠️ ':'')+'Wind '+(w.w!=null?w.w:'–')+(w.g!=null?', gusts '+w.g:'')+' km/h</span>');
+  if(w.g!=null||w.w!=null)bits.push('<span class="'+(w.g>=50?'wxw':'wxm')+'">'+(w.g>=50?'⚠️ ':'')+'💨 Wind up to '+(w.w!=null?w.w+' km/h':'–')+(w.g!=null?' · gusts '+w.g+' km/h':'')+'</span>');
   var lbl=k===realToday()?"Today's weather":k===addDays(realToday(),1)?"Tomorrow's weather":DN[parse(k).getDay()]+"'s weather";
   return '<div class="wx"><span class="wxl">'+lbl+'</span><span class="wxi">'+w.i+'</span><span class="wxt">'+w.hi+'° <span class="wxm">/ '+w.lo+'°</span></span><b>'+w.t+'</b>'+bits.join('')+'<span class="wxm" style="margin-left:auto;font-size:13px">'+WX_PLACE+' area</span></div>';
 }
