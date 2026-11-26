@@ -449,7 +449,7 @@ function askPin(){
 var lastDefault=todayKey();
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"){var nd=todayKey();if(nd!==lastDefault){if(view==="day"&&cur===lastDefault&&modalEl.hidden)go("day",nd);lastDefault=nd;}loadWx();if(modalEl.hidden&&!saving&&!typingNote())load(true);}});
 setInterval(function(){if(document.visibilityState==="visible"&&modalEl.hidden&&!saving&&!editing())load(true);},5*60*1000);
-var APP_VERSION="2026.11.26-1";
+var APP_VERSION="2026.11.26-2";
 /* Check for updates: get the newest app from GitHub; reload if it changed, otherwise refresh the schedule */
 function checkUpdates(btn){
   if(btn){btn.disabled=true;btn.textContent="Checking…";}
@@ -521,21 +521,26 @@ var WX_LAT=49.05,WX_LON=-122.31,WX_PLACE="Abbotsford",WX={},wxAt=0;
 try{var wc=JSON.parse(localStorage.getItem("cjb-wx")||"null");if(wc&&wc.d){WX=wc.d;wxAt=wc.at||0;}}catch(e){}
 var WMO={0:["☀️","Sunny"],1:["🌤️","Mostly sunny"],2:["⛅","Partly cloudy"],3:["☁️","Cloudy"],45:["🌫️","Fog"],48:["🌫️","Freezing fog"],51:["🌦️","Light drizzle"],53:["🌦️","Drizzle"],55:["🌧️","Heavy drizzle"],56:["🌧️","Freezing drizzle"],57:["🌧️","Freezing drizzle"],61:["🌧️","Light rain"],63:["🌧️","Rain"],65:["🌧️","Heavy rain"],66:["🧊","Freezing rain"],67:["🧊","Freezing rain"],71:["🌨️","Light snow"],73:["🌨️","Snow"],75:["❄️","Heavy snow"],77:["🌨️","Snow grains"],80:["🌦️","Showers"],81:["🌧️","Showers"],82:["⛈️","Heavy showers"],85:["🌨️","Snow showers"],86:["❄️","Heavy snow showers"],95:["⛈️","Thunderstorms"],96:["⛈️","Thunderstorms, hail"],99:["⛈️","Thunderstorms, hail"]};
 function loadWx(force){
-  if(!force&&Date.now()-wxAt<60*60*1000&&Object.keys(WX).length)return;
-  fetch("https://api.open-meteo.com/v1/forecast?latitude="+WX_LAT+"&longitude="+WX_LON+"&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,snowfall_sum,wind_gusts_10m_max&timezone=America%2FVancouver&forecast_days=16")
-  .then(function(r){return r.json();}).then(function(j){
-    var dd=j&&j.daily;if(!dd||!dd.time)return;var o={};
-    dd.time.forEach(function(k,i){o[k]={c:dd.weather_code[i],hi:dd.temperature_2m_max[i],lo:dd.temperature_2m_min[i],pop:dd.precipitation_probability_max[i],mm:dd.precipitation_sum[i],sn:dd.snowfall_sum[i],g:dd.wind_gusts_10m_max[i]};});
+  if(!force&&Date.now()-wxAt<60*60*1000&&Object.keys(WX).length&&WX._v===2)return;
+  var base="https://api.open-meteo.com/v1/forecast?latitude="+WX_LAT+"&longitude="+WX_LON+"&timezone=America%2FVancouver&forecast_days=16";
+  var gDaily=fetch(base+"&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,snowfall_sum").then(function(r){return r.json();});
+  /* wind from Environment Canada's GEM model, work hours only (7 am – 5 pm) */
+  var gWind=fetch(base+"&hourly=wind_speed_10m,wind_gusts_10m&models=gem_seamless").then(function(r){return r.json();}).catch(function(){return null;});
+  Promise.all([gDaily,gWind]).then(function(rs){
+    var dd=rs[0]&&rs[0].daily,hh=rs[1]&&rs[1].hourly;if(!dd||!dd.time)return;var o={_v:2},wind={};
+    if(hh&&hh.time)hh.time.forEach(function(t,i){var hr=+t.slice(11,13);if(hr<7||hr>17)return;var k=t.slice(0,10),w=wind[k]||(wind[k]={s:null,g:null});
+      var sp=hh.wind_speed_10m[i],gu=hh.wind_gusts_10m[i];if(sp!=null&&(w.s==null||sp>w.s))w.s=sp;if(gu!=null&&(w.g==null||gu>w.g))w.g=gu;});
+    dd.time.forEach(function(k,i){var w=wind[k]||{};o[k]={c:dd.weather_code[i],hi:dd.temperature_2m_max[i],lo:dd.temperature_2m_min[i],pop:dd.precipitation_probability_max[i],mm:dd.precipitation_sum[i],sn:dd.snowfall_sum[i],w:w.s,g:w.g};});
     WX=o;wxAt=Date.now();try{localStorage.setItem("cjb-wx",JSON.stringify({at:wxAt,d:WX}));}catch(e){}
     if(!typingNote()&&modalEl.hidden)render();
   }).catch(function(){});
 }
-function wxOf(k){var w=WX[k];if(!w||k<realToday())return null;var m=WMO[w.c]||["🌡️",""];return {i:m[0],t:m[1],hi:Math.round(w.hi),lo:Math.round(w.lo),pop:w.pop==null?null:Math.round(w.pop),mm:w.mm,sn:w.sn,g:w.g==null?null:Math.round(w.g)};}
+function wxOf(k){var w=WX[k];if(!w||k<realToday())return null;var m=WMO[w.c]||["🌡️",""];return {i:m[0],t:m[1],hi:Math.round(w.hi),lo:Math.round(w.lo),pop:w.pop==null?null:Math.round(w.pop),mm:w.mm,sn:w.sn,w:w.w==null?null:Math.round(w.w),g:w.g==null?null:Math.round(w.g)};}
 function wxLine(k){
   var w=wxOf(k);if(!w)return "";
   var bits=[];
   if(w.pop!=null)bits.push('<span class="wxm">'+w.pop+'% '+(w.sn>0.2?'snow':'rain')+(w.mm>=1?' · '+(w.sn>0.2?Math.round(w.sn)+' cm':Math.round(w.mm)+' mm'):'')+'</span>');
-  if(w.g!=null)bits.push('<span class="'+(w.g>=50?'wxw':'wxm')+'">'+(w.g>=50?'⚠️ ':'')+'Gusts '+w.g+' km/h</span>');
+  if(w.g!=null||w.w!=null)bits.push('<span class="'+(w.g>=50?'wxw':'wxm')+'">'+(w.g>=50?'⚠️ ':'')+'Wind '+(w.w!=null?w.w:'–')+(w.g!=null?', gusts '+w.g:'')+' km/h</span>');
   var lbl=k===realToday()?"Today's weather":k===addDays(realToday(),1)?"Tomorrow's weather":DN[parse(k).getDay()]+"'s weather";
   return '<div class="wx"><span class="wxl">'+lbl+'</span><span class="wxi">'+w.i+'</span><span class="wxt">'+w.hi+'° <span class="wxm">/ '+w.lo+'°</span></span><b>'+w.t+'</b>'+bits.join('')+'<span class="wxm" style="margin-left:auto;font-size:13px">'+WX_PLACE+' area</span></div>';
 }
